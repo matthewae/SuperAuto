@@ -1,8 +1,38 @@
-class AppUser {
-  final String id;
+class User {
+  final int? id;
   final String email;
-  final String? name;
+  final String password;
+  final String name;
+  final String role;
 
-  const AppUser({required this.id, required this.email, this.name});
-}
+  User({
+    this.id,
+    required this.email,
+    required this.password,
+    required this.name,
+    this.role = 'user',
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'email': email,
+      'password': password,
+      'name': name,
+      'role': role,
+    };
+  }
+
+  // Dari database ke object
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User(
+      id: map['id'] as int?,
+      email: map['email'] as String,
+      password: map['password'] as String,
+      name: map['name'] as String,
+      role: map['role'] as String? ?? 'user',
+    );
+   }
+  }
+
 

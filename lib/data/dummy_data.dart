@@ -42,7 +42,6 @@ void seedDummyData(WidgetRef ref) {
       price: 80000,
     ),
   ];
-  ref.read(productsProvider.notifier).set(products);
 
   ref.read(bundlingsProvider.notifier).set([
     Bundling(
@@ -80,16 +79,4 @@ void seedDummyData(WidgetRef ref) {
     ),
   ]);
 
-  ref.read(historyProvider.notifier).add(
-    ServiceHistoryItem(
-      id: uuid.v4(),
-      userId: ref.read(authProvider)?.id ?? 'u1',
-      carId: ref.read(mainCarIdProvider),
-      date: DateTime.now().subtract(const Duration(days: 60)),
-      km: 10000,
-      jobs: const ['Ganti Oli', 'Ganti Filter Oli'],
-      parts: const ['Oli 5W-30', 'Filter Oli'],
-      totalCost: 230000,
-    ),
-  );
 }

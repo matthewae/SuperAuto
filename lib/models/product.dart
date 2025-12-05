@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'enums.dart';
 
 class Product {
@@ -7,7 +8,7 @@ class Product {
   final String description;
   final double price;
   final String? imageUrl;
-  final List<String> compatibleModels; // simple sorting by model
+  final List<String> compatibleModels;
 
   const Product({
     required this.id,
@@ -18,5 +19,26 @@ class Product {
     this.imageUrl,
     this.compatibleModels = const [],
   });
-}
 
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'category': category.nameStr,
+    'description': description,
+    'price': price,
+    'imageUrl': imageUrl,
+    'compatibleModels': jsonEncode(compatibleModels),
+  };
+
+  factory Product.fromMap(Map<String, dynamic> json) => Product(
+    id: json['id'],
+    name: json['name'],
+    category: ProductCategoryExt.fromString(json['category']),
+    description: json['description'],
+    price: json['price'],
+    imageUrl: json['imageUrl'],
+    compatibleModels: json['compatibleModels'] == null
+        ? []
+        : List<String>.from(jsonDecode(json['compatibleModels'])),
+  );
+}

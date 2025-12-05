@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../features/auth/login_page.dart';
-import '../features/home/home_page.dart';
-import '../features/cars/cars_list_page.dart';
-import '../features/cars/car_detail_page.dart';
-import '../features/cars/car_scan_page.dart';
-import '../features/booking/booking_page.dart';
-import '../features/tracking/tracking_page.dart';
-import '../features/history/history_page.dart';
-import '../features/catalog/catalog_page.dart';
-import '../features/catalog/product_detail_page.dart';
-import '../features/cart/cart_page.dart';
-import '../features/checkout/checkout_page.dart';
-import '../features/bundling/bundling_page.dart';
-import '../features/promo/promo_page.dart';
-import '../features/loyalty/loyalty_page.dart';
-import '../features/profile/profile_page.dart';
+import '../screens/admin/admin_dashboard.dart';
+import '../screens/admin/admin_product.dart';
+import '../screens/auth/login_page.dart';
+import '../screens/auth/register_page.dart';
+import '../screens/home/home_page.dart';
+import '../screens/cars/cars_list_page.dart';
+import '../screens/cars/car_detail_page.dart';
+import '../screens/cars/car_scan_page.dart';
+import '../screens/booking/booking_page.dart';
+import '../screens/tracking/tracking_page.dart';
+import '../screens/history/history_page.dart';
+import '../screens/catalog/catalog_page.dart';
+import '../screens/catalog/product_detail_page.dart';
+import '../screens/cart/cart_page.dart';
+import '../screens/checkout/checkout_page.dart';
+import '../screens/bundling/bundling_page.dart';
+import '../screens/promo/promo_page.dart';
+import '../screens/loyalty/loyalty_page.dart';
+import '../screens/profile/profile_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -27,6 +30,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const LoginPage(),
       ),
+      GoRoute(
+        path: '/register',
+        name: 'register',
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/admin',
+        name: 'admindashboard',
+        builder: (_, __) => const AdminDashboard()),
+      GoRoute(
+          path: '/admin',
+          name: 'adminproduct',
+          builder: (_, __) => const AdminProducts()),
       GoRoute(
         path: '/home',
         name: 'home',

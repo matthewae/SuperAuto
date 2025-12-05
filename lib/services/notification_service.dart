@@ -11,18 +11,29 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    if (kIsWeb) return; // skip on web
+    if (kIsWeb) return;
     tzData.initializeTimeZones();
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
     await _plugin.initialize(initSettings);
   }
 
-  Future<void> scheduleServiceReminder({required int id, required String title, required String body, required DateTime when}) async {
-    if (kIsWeb) return; // skip on web
-    final details = NotificationDetails(
-      android: const AndroidNotificationDetails('service_reminders', 'Service Reminders', importance: Importance.defaultImportance),
+  Future<void> scheduleServiceReminder({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+  }) async {
+    if (kIsWeb) return;
+
+    final details = const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'service_reminders',
+        'Service Reminders',
+        importance: Importance.defaultImportance,
+      ),
     );
+
     await _plugin.zonedSchedule(
       id,
       title,
@@ -30,9 +41,8 @@ class NotificationService {
       tz.TZDateTime.from(when, tz.local),
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: 'service',
       matchDateTimeComponents: DateTimeComponents.dateAndTime,
+      payload: 'service',
     );
   }
 }

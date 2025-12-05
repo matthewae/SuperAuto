@@ -1,6 +1,6 @@
 class Order {
   final String id;
-  final String userId;
+  final int? userId;
   final List<OrderItem> items;
   final double total;
   final DateTime createdAt;

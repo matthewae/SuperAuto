@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user.dart';
 import '../models/car.dart';
@@ -11,19 +12,19 @@ import '../models/bundling.dart';
 import '../models/promo.dart';
 import '../models/loyalty_points.dart';
 import '../models/enums.dart';
+import '../services/auth_service.dart';
+import '../data/dao/product_dao.dart';
 
 const _uuid = Uuid();
 
 // Auth
-final authProvider = StateProvider<AppUser?>((ref) => null);
+final authProvider = StateProvider<User?>((ref) => null);
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
-void loginDummy(WidgetRef ref, {String? email}) {
-  ref.read(authProvider.notifier).state = AppUser(
-    id: _uuid.v4(),
-    email: email ?? 'user@example.com',
-    name: 'User',
-  );
-}
+/// Provider untuk menyimpan user aktif
+final userStateProvider = StateProvider<User?>((ref) => null);
+final productDaoProvider = Provider<ProductDao>((ref) => ProductDao());
+
 
 // Cars
 class CarsNotifier extends StateNotifier<List<Car>> {
@@ -37,11 +38,69 @@ final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) => Car
 final mainCarIdProvider = StateProvider<String>((ref) => '');
 
 // Products
-class ProductsNotifier extends StateNotifier<List<Product>> {
-  ProductsNotifier() : super(const []);
-  void set(List<Product> list) => state = list;
+// Products
+class ProductNotifier extends StateNotifier<List<Product>> {
+  final ProductDao dao;
+
+  ProductNotifier(this.dao) : super([]) {
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    final items = await dao.getAll();
+    state = items;
+  }
+
+  Future<void> save(
+      String name,
+      double price,
+      String desc,
+      ProductCategory category,
+      List<String> compatibleModels,
+      Product? existing,
+      ) async {
+    if (existing == null) {
+      // ADD
+      final newProduct = Product(
+        id: _uuid.v4(),
+        name: name,
+        category: category,
+        description: desc,
+        price: price,
+        compatibleModels: compatibleModels,
+      );
+
+      await dao.insert(newProduct);
+      state = [...state, newProduct];
+    } else {
+      // EDIT
+      final updated = Product(
+        id: existing.id,
+        name: name,
+        category: category,
+        description: desc,
+        price: price,
+        compatibleModels: compatibleModels,
+        imageUrl: existing.imageUrl,
+      );
+
+      await dao.update(updated);
+
+      state = [
+        for (final p in state)
+          if (p.id == existing.id) updated else p
+      ];
+    }
+  }
+
+  Future<void> delete(String id) async {
+    await dao.delete(id);
+    state = state.where((p) => p.id != id).toList();
+  }
 }
-final productsProvider = StateNotifierProvider<ProductsNotifier, List<Product>>((ref) => ProductsNotifier());
+final productsProvider = StateNotifierProvider<ProductNotifier, List<Product>>(
+      (ref) => ProductNotifier(ref.read(productDaoProvider)),
+);
 
 // Cart
 class CartNotifier extends StateNotifier<Cart> {
