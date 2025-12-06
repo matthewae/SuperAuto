@@ -15,7 +15,6 @@ class CarsListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cars = ref.watch(carsProvider);
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Mobil Saya')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/scan'),
         child: const Icon(Icons.qr_code_scanner),
@@ -24,10 +23,7 @@ class CarsListPage extends ConsumerWidget {
         itemCount: cars.length + 1,
         itemBuilder: (context, i) {
           if (i == 0) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: NeumorphicHeader(title: 'Daftar Mobil', subtitle: 'Kelola kendaraan Anda'),
-            );
+            return const SizedBox.shrink();
           }
           final c = cars[i - 1];
           return GFListTile(
@@ -45,3 +41,4 @@ class CarsListPage extends ConsumerWidget {
     );
   }
 }
+

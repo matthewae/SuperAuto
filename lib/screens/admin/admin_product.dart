@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/product_form_dialog.dart';
 import '../../widgets/product_item.dart';
-import '../../widgets/product_form_dialog.dart';
-import '../../widgets/product_item.dart';
 
 class AdminProducts extends ConsumerWidget {
   const AdminProducts({super.key});
@@ -14,7 +12,6 @@ class AdminProducts extends ConsumerWidget {
     final products = ref.watch(productsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -29,11 +26,6 @@ class AdminProducts extends ConsumerWidget {
                   ),
                 ),
                 FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(10, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text("Add"),
                   onPressed: () {

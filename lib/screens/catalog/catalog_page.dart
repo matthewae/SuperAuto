@@ -20,7 +20,6 @@ class CatalogPage extends ConsumerWidget {
         ? products
         : products.where((p) => p.compatibleModels.isEmpty || p.compatibleModels.contains(model)).toList();
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Katalog Produk')),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -32,13 +31,7 @@ class CatalogPage extends ConsumerWidget {
         itemCount: filtered.length + 1,
         itemBuilder: (context, i) {
           if (i == 0) {
-            return Neumorphic(
-              style: const NeumorphicStyle(depth: 6, lightSource: LightSource.topLeft),
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('Filter otomatis berdasarkan mobil utama Anda'),
-              ),
-            );
+            return const SizedBox.shrink();
           }
           final p = filtered[i - 1];
           return InkWell(

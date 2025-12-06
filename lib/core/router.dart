@@ -5,6 +5,7 @@ import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_product.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/auth/register_page.dart';
+import '../screens/auth/splash_screen.dart';
 import '../screens/home/home_page.dart';
 import '../screens/cars/cars_list_page.dart';
 import '../screens/cars/car_detail_page.dart';
@@ -20,13 +21,19 @@ import '../screens/bundling/bundling_page.dart';
 import '../screens/promo/promo_page.dart';
 import '../screens/loyalty/loyalty_page.dart';
 import '../screens/profile/profile_page.dart';
+import '../widgets/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     routes: [
       GoRoute(
-        path: '/',
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/login',
         name: 'login',
         builder: (context, state) => const LoginPage(),
       ),
@@ -43,20 +50,35 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/admin',
           name: 'adminproduct',
           builder: (_, __) => const AdminProducts()),
-      GoRoute(
-        path: '/home',
-        name: 'home',
-        builder: (context, state) => const HomePage(),
+      ShellRoute(
+        builder: (context, state, child) => MainShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/home',
+            name: 'home',
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: '/cars',
+            name: 'cars',
+            builder: (context, state) => const CarsListPage(),
+          ),
+          GoRoute(
+            path: '/catalog',
+            name: 'catalog',
+            builder: (context, state) => const CatalogPage(),
+          ),
+          GoRoute(
+            path: '/profile',
+            name: 'profile',
+            builder: (context, state) => const ProfilePage(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/scan',
         name: 'scan',
         builder: (context, state) => const CarScanPage(),
-      ),
-      GoRoute(
-        path: '/cars',
-        name: 'cars',
-        builder: (context, state) => const CarsListPage(),
       ),
       GoRoute(
         path: '/cars/:id',
@@ -77,11 +99,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/history',
         name: 'history',
         builder: (context, state) => const HistoryPage(),
-      ),
-      GoRoute(
-        path: '/catalog',
-        name: 'catalog',
-        builder: (context, state) => const CatalogPage(),
       ),
       GoRoute(
         path: '/product/:id',
@@ -112,11 +129,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/loyalty',
         name: 'loyalty',
         builder: (context, state) => const LoyaltyPage(),
-      ),
-      GoRoute(
-        path: '/profile',
-        name: 'profile',
-        builder: (context, state) => const ProfilePage(),
       ),
       // Rute lain akan ditambahkan seiring fitur dibangun
     ],

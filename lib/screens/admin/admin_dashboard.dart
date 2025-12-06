@@ -17,10 +17,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   final screens = const [
     AdminProducts(),
-    // AdminOrders(),
-    // AdminBooking(),
-    // AdminHistory(),
-    // AdminProfile(),
+    AdminOrdersPage(),
+    AdminBookingPage(),
+    AdminHistoryPage(),
+    AdminProfilePage(),
   ];
 
   @override

@@ -11,20 +11,9 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: GFAppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Scan QR Registrasi Mobil',
-            onPressed: () => context.push('/scan'),
-            icon: const Icon(Icons.qr_code_scanner),
-          ),
-        ],
-      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const NeumorphicHeader(title: 'Ringkasan', subtitle: 'Belum ada jadwal servis terdekat'),
           const SizedBox(height: 12),
           Card(
             child: ListTile(
@@ -55,24 +44,6 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ],
-      ),
-      bottomNavigationBar: NeumorphicBottomNav(
-        currentIndex: 0,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              break;
-            case 1:
-              context.push('/history');
-              break;
-            case 2:
-              context.push('/cart');
-              break;
-            case 3:
-              context.push('/profile');
-              break;
-          }
-        },
       ),
     );
   }

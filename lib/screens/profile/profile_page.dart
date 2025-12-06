@@ -3,6 +3,7 @@ import 'package:getwidget/getwidget.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
+import 'package:go_router/go_router.dart';
 import '../../widgets/neumorphic_header.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -11,13 +12,12 @@ class ProfilePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Profile & Settings')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const NeumorphicHeader(title: 'Pengaturan', subtitle: 'Personalisasi pengalaman Anda'),
+            const SizedBox.shrink(),
             const SizedBox(height: 12),
             GFListTile(
               title: const Text('Dark Mode'),
@@ -27,9 +27,20 @@ class ProfilePage extends ConsumerWidget {
                 onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
               ),
             ),
+            const SizedBox(height: 12),
+            GFButton(
+              onPressed: () {
+                // TODO: Implement actual logout logic (e.g., clear session, call auth provider)
+                context.go('/login');
+              },
+              text: 'Logout',
+              blockButton: true,
+              color: GFColors.DANGER,
+            ),
           ],
         ),
       ),
     );
   }
 }
+

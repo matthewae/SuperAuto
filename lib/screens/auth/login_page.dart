@@ -1,76 +1,162 @@
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:getwidget/components/appbar/gf_appbar.dart';
+import 'package:getwidget/components/button/gf_button.dart';
+import 'package:getwidget/getwidget.dart'; // Added this import
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // Added this import
 import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
 import '../../data/dummy_data.dart';
 import '../../widgets/neumorphic_header.dart';
 
-class LoginPage extends ConsumerWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  late final TextEditingController emailController;
+  late final TextEditingController passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    emailController = TextEditingController();
+    passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Login / Register')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const NeumorphicHeader(title: 'Selamat datang', subtitle: 'Masuk untuk mulai menggunakan SuperAuto'),
-            const SizedBox(height: 16),
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
-            const SizedBox(height: 8),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            GFButton(
-              color: const Color(0xFF1E88E5),
-              fullWidthButton: true,
-              onPressed: () async {
-                final auth = ref.read(authServiceProvider);
-                final user = await auth.login(emailController.text, passwordController.text);
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Login / Register'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 0,
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: Center(
+              child: Container(
+                width: constraints.maxWidth > 600 ? 400 : double.infinity,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SvgPicture.asset('assets/logo.svg', height: 100),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Selamat datang',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Masuk untuk mulai menggunakan SuperAuto',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      controller: emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                        ),
+                        prefixIcon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                        ),
+                        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 24),
+                    GFButton(
+                      color: Theme.of(context).colorScheme.primary,
+                      fullWidthButton: true,
+                      onPressed: () async {
+                        final auth = ref.read(authServiceProvider);
+                        final user = await auth.login(emailController.text, passwordController.text);
 
-                if (user == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Email atau password salah')),
-                  );
-                  return;
-                }
-                ref.read(userStateProvider.notifier).state = user;
-                await NotificationService().init();
-                seedDummyData(ref);
-                if (context.mounted) {
-                  if (user.role == 'admin') {
-                    context.go('/admin');
-                  } else {
-                    context.go('/home');
-                  }
-                }
-              },
-
-              child: const Text('Masuk'),
+                        if (user == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Email atau password salah')),
+                          );
+                          return;
+                        }
+                        ref.read(userStateProvider.notifier).state = user;
+                        await NotificationService().init();
+                        seedDummyData(ref);
+                        if (context.mounted) {
+                          if (user.role == 'admin') {
+                            context.go('/admin');
+                          } else {
+                            context.go('/splash');
+                          }
+                        }
+                      },
+                      child: Text('Masuk', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary)),
+                      size: GFSize.LARGE,
+                      shape: GFButtonShape.pills,
+                    ),
+                    const SizedBox(height: 16),
+                    GFButton(
+                      type: GFButtonType.outline,
+                      fullWidthButton: true,
+                      onPressed: () {
+                        context.push('/register');
+                      },
+                      child: Text('Daftar', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.primary)),
+                      size: GFSize.LARGE,
+                      shape: GFButtonShape.pills,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            GFButton(
-              type: GFButtonType.outline,
-              fullWidthButton: true,
-              onPressed: () {
-                context.push('/register');
-              },
-              child: const Text('Daftar'),
-            ),
-
-          ],
-        ),
+          );
+        },
       ),
     );
   }
