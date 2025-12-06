@@ -41,4 +41,24 @@ class Product {
         ? []
         : List<String>.from(jsonDecode(json['compatibleModels'])),
   );
+
+  Product copyWith({
+    String? id,
+    String? name,
+    ProductCategory? category,
+    String? description,
+    double? price,
+    String? imageUrl,
+    List<String>? compatibleModels,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      imageUrl: imageUrl ?? this.imageUrl,
+      compatibleModels: compatibleModels ?? this.compatibleModels,
+    );
+  }
 }

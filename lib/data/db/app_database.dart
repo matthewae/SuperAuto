@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class AppDatabase {
+
   static final AppDatabase instance = AppDatabase._init();
   static Database? _db;
 
@@ -26,7 +27,7 @@ class AppDatabase {
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
-    CREATE TABLE cars (
+    CREATE TABLE IF NOT EXISTS cars (
     id TEXT PRIMARY KEY,
     brand TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -43,7 +44,7 @@ class AppDatabase {
 ''');
 
     await db.execute('''
-  CREATE TABLE users (
+  CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -54,7 +55,7 @@ class AppDatabase {
 
 
     await db.execute('''
-      CREATE TABLE products (
+      CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       name TEXT,
       category TEXT,
@@ -66,7 +67,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE orders (
+      CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         userId TEXT,
         productId TEXT,
@@ -75,7 +76,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-  CREATE TABLE service_bookings (
+  CREATE TABLE IF NOT EXISTS service_bookings (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
     carId TEXT NOT NULL,
@@ -99,7 +100,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE promo (
+      CREATE TABLE IF NOT EXISTS promo (
         id TEXT PRIMARY KEY,
         title TEXT,
         description TEXT,
@@ -108,7 +109,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE cart (
+      CREATE TABLE IF NOT EXISTS cart (
         id TEXT PRIMARY KEY,
         productId TEXT,
         qty INTEGER

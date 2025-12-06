@@ -1,7 +1,12 @@
 import '../db/app_database.dart';
 import '../../models/user.dart';
-
+import 'package:sqflite/sqflite.dart';
 class UserDao {
+
+  final Database db;
+
+  UserDao(this.db);
+
   Future<int> insertUser(User user) async {
     final db = await AppDatabase.instance.database;
     return await db.insert('users', user.toMap());
@@ -36,7 +41,15 @@ class UserDao {
 
     return null;
   }
-
+  Future<User?> getUserById(String id) async {
+    final db = await AppDatabase.instance.database;
+    final results = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return results.isNotEmpty ? User.fromMap(results.first) : null;
+  }
   Future<void> listAllUsers() async {
     final db = await AppDatabase.instance.database;
     final users = await db.query('users');

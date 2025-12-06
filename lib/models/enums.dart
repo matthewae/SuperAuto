@@ -1,3 +1,5 @@
+  import 'package:flutter/material.dart';
+
 enum ServiceStatus {
   booking,
   waiting,
@@ -15,7 +17,7 @@ extension ServiceStatusExt on ServiceStatus {
         .firstWhere((e) => e.toString().split('.').last == val);
   }
 }
-  enum BookingStatus {
+enum BookingStatus {
   pending('Menunggu Konfirmasi'),
   confirmed('Dikonfirmasi'),
   inProgress('Sedang Dikerjakan'),
@@ -27,6 +29,64 @@ extension ServiceStatusExt on ServiceStatus {
 
   final String displayName;
   const BookingStatus(this.displayName);
+
+  // Get next possible statuses based on current status
+  static List<BookingStatus> getNextPossibleStatuses(BookingStatus current) {
+    switch (current) {
+      case BookingStatus.pending:
+        return [
+          BookingStatus.confirmed,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.confirmed:
+        return [
+          BookingStatus.inProgress,
+          BookingStatus.waitingParts,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.inProgress:
+        return [
+          BookingStatus.waitingParts,
+          BookingStatus.waitingPayment,
+          BookingStatus.readyForPickup,
+          BookingStatus.completed,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.waitingParts:
+        return [
+          BookingStatus.inProgress,
+          BookingStatus.waitingPayment,
+          BookingStatus.readyForPickup,
+          BookingStatus.completed,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.waitingPayment:
+        return [
+          BookingStatus.readyForPickup,
+          BookingStatus.completed,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.readyForPickup:
+        return [
+          BookingStatus.completed,
+          BookingStatus.cancelled,
+        ];
+      case BookingStatus.completed:
+      case BookingStatus.cancelled:
+        return []; // No further status changes allowed
+    }
+  }
+
+  // Get display names for dropdown
+  static List<DropdownMenuItem<BookingStatus>> getStatusDropdownItems(BookingStatus currentStatus) {
+    final possibleStatuses = getNextPossibleStatuses(currentStatus);
+    return possibleStatuses
+        .map((status) => DropdownMenuItem<BookingStatus>(
+      value: status,
+      child: Text(status.displayName),
+    ))
+        .toList();
+  }
 }
 enum ServiceType {
   routine,

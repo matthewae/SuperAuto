@@ -1,16 +1,64 @@
 import '../../../data/db/app_database.dart';
 import '../../models/service_booking.dart';
+import 'dart:developer' as developer;
+import 'dart:convert';
+import 'package:sqflite/sqflite.dart';
 
 class ServiceBookingDao {
+
+  final Database db;
+
+  ServiceBookingDao(this.db);
+  static const String _tableName = 'service_bookings';
+  void _log(String message, {bool isError = false}) {
+    if (isError) {
+      developer.log('❌ ServiceBookingDao: $message', error: message);
+    } else {
+      developer.log('ℹ️ ServiceBookingDao: $message');
+    }
+  }
   Future<int> insert(ServiceBooking booking) async {
-    final db = await AppDatabase.instance.database;
-    return await db.insert('service_bookings', booking.toMap());
+    try {
+      final db = await AppDatabase.instance.database;
+      final id = await db.insert(
+        _tableName,
+        booking.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,  // Langsung pakai
+      );
+      _log('Inserted booking ${booking.id}');
+      return id;
+    } catch (e, stack) {
+      _log('Error inserting booking: $e\n$stack', isError: true);
+      rethrow;
+    }
   }
 
   Future<List<ServiceBooking>> getAll() async {
-    final db = await AppDatabase.instance.database;
-    final results = await db.query('service_bookings', orderBy: 'scheduledAt DESC');
-    return results.map((e) => ServiceBooking.fromMap(e)).toList();
+    try {
+      final db = await AppDatabase.instance.database;
+      final results = await db.query(
+          _tableName,
+          orderBy: 'scheduledAt DESC'
+      );
+      _log('Fetched ${results.length} bookings');
+      return results.map((e) => ServiceBooking.fromMap(e)).toList();
+    } catch (e, stack) {
+      _log('Error fetching bookings: $e\n$stack', isError: true);
+      rethrow;
+    }
+  }
+
+  Future<void> debugPrintAllBookings() async {
+    try {
+      final db = await AppDatabase.instance.database;
+      final results = await db.query(_tableName);
+      _log('=== BOOKINGS IN DATABASE (${results.length}) ===');
+      for (var item in results) {
+        _log('Booking: ${item['id']} - ${item['status']}');
+      }
+    } catch (e) {
+      _log('Error printing bookings: $e', isError: true);
+    }
   }
 
   Future<List<ServiceBooking>> getByUserId(String userId) async {

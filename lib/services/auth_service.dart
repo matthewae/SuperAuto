@@ -3,9 +3,12 @@ import '../models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  final UserDao _userDao = UserDao();
+  final UserDao _userDao;
   bool _initialized = false;
   User? _currentUser;
+
+
+  AuthService(this._userDao);
 
   Future<void> init() async {
     if (_initialized) return;

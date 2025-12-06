@@ -10,7 +10,10 @@ import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/neumorphic_header.dart';
 import '../../models/user.dart';  // Adjust the path as needed
+import '../../models/car.dart';
+
 class BookingPage extends ConsumerStatefulWidget {
+
   const BookingPage({super.key});
   @override
   ConsumerState<BookingPage> createState() => _BookingPageState();
@@ -66,6 +69,79 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     super.dispose();
   }
 
+  Future<void> _submitBooking() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final user = ref.read(authProvider).value;
+      if (user == null) {
+        throw Exception('Silakan login terlebih dahulu');
+      }
+
+      // Get user's cars
+      final userCars = await ref.read(carDaoProvider).getByUserId(user.idString);
+      if (userCars.isEmpty) {
+        throw Exception('Anda belum menambahkan mobil. Silakan tambahkan mobil terlebih dahulu.');
+      }
+
+      // Get main car ID and find the car
+      final mainCarId = ref.read(mainCarIdProvider);
+      if (mainCarId.isEmpty) {
+        // If no main car is set, use the first car if available
+        if (userCars.isNotEmpty) {
+          // Update main car to the first car
+          await ref.read(mainCarIdProvider.notifier).setMainCarId(userCars.first.id);
+        } else {
+          throw Exception('Silakan pilih mobil utama terlebih dahulu');
+        }
+      }
+
+      // Verify the car belongs to the user
+      final selectedCar = userCars.firstWhere(
+            (car) => car.id == mainCarId,
+        orElse: () => throw Exception('Mobil tidak valid atau tidak ditemukan. Silakan pilih mobil lain.'),
+      );
+
+      final scheduled = DateTime(
+          _date.year, _date.month, _date.day, _time.hour, _time.minute
+      );
+
+      final booking = ServiceBooking(
+        id: const Uuid().v4(),
+        userId: user.idString,
+        carId: selectedCar.id,  // Use the verified car ID
+        serviceType: _type.toString().split('.').last,
+        scheduledAt: scheduled,
+        estimatedCost: _estimated,
+        notes: _notesController.text,
+        status: 'pending',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Save booking
+      ref.read(bookingsProvider.notifier).add(booking);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking berhasil dibuat')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -107,74 +183,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     }
   }
 
-  Future<void> _submitBooking() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    setState(() => _isSubmitting = true);
-    try {
-      final user = ref.read(authProvider).value;
-      final mainCarId = ref.read(mainCarIdProvider);
-
-      if (user == null || mainCarId.isEmpty) {
-        throw Exception('User not authenticated or no car selected');
-      }
-
-      final scheduled = DateTime(
-          _date.year,
-          _date.month,
-          _date.day,
-          _time.hour,
-          _time.minute
-      );
-
-      final booking = ServiceBooking(
-        id: _uuid.v4(),
-        userId: user.idString,
-        carId: mainCarId,
-        serviceType: _type.toString().split('.').last,
-        scheduledAt: scheduled,
-        estimatedCost: _estimated,
-        workshop: 'Bengkel Utama',
-        status: 'pending',
-        isPickupService: _isPickupService,
-        notes: _notesController.text.trim(),
-        createdAt: DateTime.now(),
-      );
-
-      ref.read(bookingsProvider.notifier).add(booking);
-
-      // Schedule reminder one day before
-      await NotificationService().scheduleServiceReminder(
-        id: booking.id.hashCode,
-        title: 'Pengingat Servis',
-        body: 'Anda memiliki jadwal servis hari ini',
-        when: booking.scheduledAt,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking berhasil dibuat'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuat booking: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -498,35 +506,67 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             return _buildAuthRequiredButton('Silakan login terlebih dahulu');
           }
 
-          if (mainCarId.isEmpty) {
-            return _buildAuthRequiredButton('Pilih mobil utama terlebih dahulu');
-          }
+          return FutureBuilder<List<Car>>(
+            future: ref.read(carDaoProvider).getByUserId(user.idString),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          return ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitBooking,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-                : const Text(
-              'Buat Janji Servis',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+              if (snapshot.hasError) {
+                return _buildAuthRequiredButton('Gagal memuat data mobil');
+              }
+
+              final userCars = snapshot.data ?? [];
+              if (userCars.isEmpty) {
+                return ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamed('/cars');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Tambah Mobil Terlebih Dahulu',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                );
+              }
+
+              if (mainCarId.isEmpty) {
+                return _buildAuthRequiredButton('Pilih mobil utama terlebih dahulu');
+              }
+
+              return ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitBooking,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text(
+                  'Buat Janji Servis',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

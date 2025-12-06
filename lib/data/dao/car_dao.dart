@@ -1,31 +1,24 @@
 import '../../../data/db/app_database.dart';
 import '../../models/car.dart';
-
+import 'package:sqflite/sqflite.dart';
 class CarDao {
+  final Database db;
+
+  CarDao(this.db);
   Future<void> insert(Car car) async {
-    final db = await AppDatabase.instance.database;
-    print('Inserting car: ${car.toMap()}');  // Add this line to log the car being inserted
+    print('Inserting car: ${car.toMap()}');
     await db.insert('cars', car.toMap());
   }
 
   Future<List<Car>> getAll() async {
-    final db = await AppDatabase.instance.database;
-    final results = await db.query('cars');  // This would get all cars
+    final results = await db.query('cars');
     return results.map((e) => Car.fromMap(e)).toList();
   }
 
   // In CarDao class
-  Future<List<Car>> getByUserId(int userId) async {
-    print('🔍 Getting cars for user ID: $userId (type: ${userId.runtimeType})');
-    final db = await AppDatabase.instance.database;
-
-    // Log all cars in the database for debugging
-    final allCars = await db.query('cars');
-    print('📋 All cars in database:');
-    for (var car in allCars) {
-      print('  - ID: ${car['id']}, Brand: ${car['brand']}, UserID: ${car['userId']} (type: ${car['userId']?.runtimeType})');
-    }
-
+  // In car_dao.dart
+  Future<List<Car>> getByUserId(String userId) async {
+    print('🔍 Getting cars for user ID: $userId');
     final results = await db.query(
       'cars',
       where: 'userId = ?',
@@ -36,7 +29,6 @@ class CarDao {
   }
 
   Future<void> checkTableSchema() async {
-    final db = await AppDatabase.instance.database;
     final tableInfo = await db.rawQuery('PRAGMA table_info(cars)');
     print('📊 Cars table schema:');
     for (var column in tableInfo) {
@@ -44,8 +36,9 @@ class CarDao {
     }
   }
 
-  Future<Car?> getById(int id) async {
-    final db = await AppDatabase.instance.database;
+
+
+  Future<Car?> getById(dynamic id) async {
     final results = await db.query(
       'cars',
       where: 'id = ?',
@@ -58,7 +51,6 @@ class CarDao {
   }
 
   Future<int> update(Car car) async {
-    final db = await AppDatabase.instance.database;
     return await db.update(
       'cars',
       car.toMap(),
@@ -69,7 +61,6 @@ class CarDao {
 
   // Delete a car
   Future<int> delete(String id) async {
-    final db = await AppDatabase.instance.database;
     return await db.delete(
       'cars',
       where: 'id = ?',

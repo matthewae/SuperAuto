@@ -1,4 +1,4 @@
-// lib/models/service_booking.dart
+  import 'dart:convert';
 class ServiceBooking {
   final String id;
   final String userId;
@@ -50,7 +50,7 @@ class ServiceBooking {
       'status': status,
       'notes': notes,
       'adminNotes': adminNotes,
-      'statusHistory': statusHistory,
+      'statusHistory': statusHistory != null ? jsonEncode(statusHistory) : null,  // Convert to JSON string
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'serviceDetails': serviceDetails,
@@ -72,7 +72,9 @@ class ServiceBooking {
       status: map['status'] as String? ?? 'pending',
       notes: map['notes'] as String?,
       adminNotes: map['adminNotes'] as String?,
-      statusHistory: map['statusHistory'] as Map<String, dynamic>?,
+      statusHistory: map['statusHistory'] != null
+          ? Map<String, dynamic>.from(jsonDecode(map['statusHistory']))
+          : null,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : DateTime.now(),

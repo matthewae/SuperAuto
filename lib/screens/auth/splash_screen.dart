@@ -1,10 +1,11 @@
+// splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
-
+import '../../models/user.dart';
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,37 +23,43 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _checkFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('first_launch') ?? true;
-    final auth = ref.read(authServiceProvider);
-    await auth.init(); // Initialize auth service to load current user
-    final user = auth.currentUser();
 
     if (isFirstLaunch) {
       await prefs.setBool('first_launch', false);
-      Future.delayed(const Duration(seconds: 3), () {
+    }
+
+    // Use the authProvider to get the current user
+    final authState = ref.read(authProvider);
+    authState.when(
+      data: (user) {
         if (mounted) {
-          if (user != null) {
-            if (user.role == 'admin') {
-              context.go('/admin');
-            } else {
-              context.go('/home');
-            }
-          } else {
-            context.go('/login');
-          }
+          _navigateBasedOnUser(user);
         }
-      });
-    } else {
-      if (mounted) {
-        if (user != null) {
-          if (user.role == 'admin') {
-            context.go('/admin');
-          } else {
-            context.go('/home');
+      },
+      loading: () {
+        // Wait a bit and try again
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _checkFirstLaunch();
           }
-        } else {
+        });
+      },
+      error: (error, stack) {
+        // If there's an error, go to login
+        if (mounted) {
           context.go('/login');
         }
-      }
+      },
+    );
+  }
+
+  void _navigateBasedOnUser(User? user) {
+    if (user == null) {
+      context.go('/login');
+    } else if (user.role == 'admin') {
+      context.go('/admin');
+    } else {
+      context.go('/home');
     }
   }
 
@@ -69,12 +76,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             Text(
               'SuperAuto',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 16),
-            CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ],
         ),
       ),
