@@ -10,6 +10,21 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget _buildActionButton(BuildContext context, String text, IconData icon, VoidCallback onTap) {
+      return SizedBox(
+        width: (MediaQuery.of(context).size.width - 56) / 2,
+        child: GFButton(
+          onPressed: onTap,
+          text: text,
+          icon: Icon(icon),
+          size: GFSize.SMALL,
+          fullWidthButton: true,
+          shape: GFButtonShape.pills,
+          color: Theme.of(context).colorScheme.primaryContainer,
+          textColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      );
+    }
     return Scaffold(
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -37,10 +52,10 @@ class HomePage extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              GFButton(onPressed: () => context.push('/booking'), text: 'Booking Servis', icon: const Icon(Icons.build)),
-              GFButton(onPressed: () => context.push('/catalog'), text: 'Katalog Produk', icon: const Icon(Icons.store)),
-              GFButton(onPressed: () => context.push('/promo'), text: 'Promo', icon: const Icon(Icons.card_giftcard)),
-              GFButton(onPressed: () => context.push('/loyalty'), text: 'Rewards', icon: const Icon(Icons.redeem)),
+              _buildActionButton(context, 'Booking Servis', Icons.build, () => context.push('/booking')),
+              _buildActionButton(context, 'Katalog Produk', Icons.store, () => context.push('/catalog')),
+              _buildActionButton(context, 'Promo', Icons.card_giftcard, () => context.push('/promo')),
+              _buildActionButton(context, 'Rewards', Icons.redeem, () => context.push('/loyalty')),
             ],
           ),
         ],

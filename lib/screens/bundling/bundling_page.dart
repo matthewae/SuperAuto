@@ -40,8 +40,13 @@ class BundlingPage extends ConsumerWidget {
                     description: b.description,
                     price: b.bundlePrice,
                   );
-                  ref.read(cartProvider.notifier).addItem(synthetic);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bundling ditambahkan ke cart')));
+                  ref.read(cartProvider.notifier).addItem(
+                    productId: synthetic.id,
+                    productName: synthetic.name,
+                    price: synthetic.price,
+                    imageUrl: synthetic.imageUrl,  // if available
+                    quantity: 1,  // or the appropriate quantity
+                  );                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bundling ditambahkan ke cart')));
                 },
                 text: 'Tambah ke Cart',
                 color: const Color(0xFF1E88E5),

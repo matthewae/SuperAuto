@@ -1,137 +1,141 @@
 import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-
-enum BookingStatus { pending, confirmed, assigned }
-
-class Booking {
-  final String id;
-  final String service;
-  final String customer;
-  final String date;
-  BookingStatus status;
-  String? assignedBay;
-
-  Booking({
-    required this.id,
-    required this.service,
-    required this.customer,
-    required this.date,
-    this.status = BookingStatus.pending,
-    this.assignedBay,
-  });
-
-  Booking copyWith({
-    BookingStatus? status,
-    String? assignedBay,
-  }) {
-    return Booking(
-      id: id,
-      service: service,
-      customer: customer,
-      date: date,
-      status: status ?? this.status,
-      assignedBay: assignedBay ?? this.assignedBay,
-    );
-  }
-}
-
-class BookingListNotifier extends StateNotifier<List<Booking>> {
-  BookingListNotifier() : super([
-    Booking(id: '1', service: 'Oil Change', customer: 'John Doe 1', date: '2024-07-15'),
-    Booking(id: '2', service: 'Tire Rotation', customer: 'Jane Smith 2', date: '2024-07-16', status: BookingStatus.confirmed),
-    Booking(id: '3', service: 'Brake Inspection', customer: 'Peter Jones 3', date: '2024-07-17'),
-    Booking(id: '4', service: 'Engine Tune-up', customer: 'Alice Brown 4', date: '2024-07-18'),
-    Booking(id: '5', service: 'Battery Check', customer: 'Bob White 5', date: '2024-07-19', status: BookingStatus.assigned, assignedBay: 'Bay 3'),
-  ]);
-
-  void confirmBooking(String id) {
-    state = [for (final booking in state) if (booking.id == id) booking.copyWith(status: BookingStatus.confirmed) else booking];
-  }
-
-  void assignBay(String id, String bay) {
-    state = [for (final booking in state) if (booking.id == id) booking.copyWith(status: BookingStatus.assigned, assignedBay: bay) else booking];
-  }
-}
-
-final bookingListProvider = StateNotifierProvider<BookingListNotifier, List<Booking>>((ref) {
-  return BookingListNotifier();
-});
+import 'package:intl/intl.dart';
+import '../../models/service_booking.dart';
+import '../../providers/app_providers.dart';
 
 class AdminBookingPage extends ConsumerWidget {
   const AdminBookingPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookings = ref.watch(bookingListProvider);
-    final notifier = ref.read(bookingListProvider.notifier);
+    final bookings = ref.watch(bookingsProvider);
+    final notifier = ref.read(bookingsProvider.notifier);
 
     return Scaffold(
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Manajemen Booking'),
+        centerTitle: true,
+      ),
+      body: bookings.isEmpty
+          ? const Center(child: Text('Tidak ada data booking'))
+          : ListView.builder(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Admin Booking Management',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: ListView.builder(
-                itemCount: bookings.length,
-                itemBuilder: (context, index) {
-                  final booking = bookings[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Booking #${booking.id}',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text('Service: ${booking.service} - ${booking.status.name}'),
-                          Text('Customer: ${booking.customer}'),
-                          Text('Date: ${booking.date}'),
-                          if (booking.assignedBay != null) Text('Assigned Bay: ${booking.assignedBay}'),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (booking.status == BookingStatus.pending) GFButton(
-                                onPressed: () {
-                                  notifier.confirmBooking(booking.id);
-                                },
-                                text: 'Confirm',
-                                color: GFColors.SUCCESS,
-                              ),
-                              const SizedBox(width: 8),
-                              if (booking.status != BookingStatus.assigned) GFButton(
-                                onPressed: () {
-                                  // For simplicity, assign to a dummy bay
-                                  notifier.assignBay(booking.id, 'Bay 1');
-                                },
-                                text: 'Assign Bay',
-                                color: GFColors.PRIMARY,
-                              ),
-                            ],
-                          ),
-                        ],
+        itemCount: bookings.length,
+        itemBuilder: (context, index) {
+          final booking = bookings[index];
+          final formattedDate = DateFormat('dd MMM yyyy HH:mm').format(booking.scheduledAt);
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Booking #${booking.id.substring(0, 8)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(booking.status),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          booking.status,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Layanan', booking.serviceType),
+                  _buildInfoRow('Bengkel', booking.workshop!),
+                  _buildInfoRow('Tanggal', formattedDate),
+                  if (booking.notes?.isNotEmpty ?? false)
+                    _buildInfoRow('Catatan', booking.notes!),
+                  const SizedBox(height: 12),
+                  if (booking.status == 'pending')
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        GFButton(
+                          onPressed: () => _updateStatus(notifier, booking.id, 'dikonfirmasi'),
+                          text: 'Konfirmasi',
+                          color: GFColors.SUCCESS,
+                          size: GFSize.SMALL,
+                        ),
+                        const SizedBox(width: 8),
+                        GFButton(
+                          onPressed: () => _updateStatus(notifier, booking.id, 'dibatalkan'),
+                          text: 'Tolak',
+                          color: GFColors.DANGER,
+                          size: GFSize.SMALL,
+                        ),
+                      ],
                     ),
-                  );
-                },
+                ],
               ),
-            )
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          const Text(': '),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'dikonfirmasi':
+        return Colors.green;
+      case 'dibatalkan':
+        return Colors.red;
+      case 'selesai':
+        return Colors.blue;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  void _updateStatus(BookingsNotifier notifier, String id, String status) {
+    notifier.updateStatus(id, status);
+    // TODO: Tambahkan logika update status ke database
   }
 }

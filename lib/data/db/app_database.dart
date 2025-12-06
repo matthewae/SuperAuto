@@ -26,17 +26,21 @@ class AppDatabase {
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE cars (
-      id TEXT PRIMARY KEY,
-      brand TEXT,
-      model TEXT,
-      year INTEGER,
-      plateNumber TEXT,
-      vin TEXT,
-      engineNumber TEXT,
-      initialKm INTEGER
-    );
-    ''');
+    CREATE TABLE cars (
+    id TEXT PRIMARY KEY,
+    brand TEXT NOT NULL,
+    model TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    plateNumber TEXT NOT NULL,
+    vin TEXT NOT NULL,
+    engineNumber TEXT NOT NULL,
+    initialKm INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+  )
+''');
 
     await db.execute('''
   CREATE TABLE users (
@@ -71,12 +75,27 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE service_bookings (
-        id TEXT PRIMARY KEY,
-        carId TEXT,
-        date TEXT,
-        description TEXT
-      );
+  CREATE TABLE service_bookings (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    carId TEXT NOT NULL,
+    serviceType TEXT NOT NULL,
+    scheduledAt TEXT NOT NULL,
+    estimatedCost REAL NOT NULL,
+    status TEXT NOT NULL,
+    workshop TEXT,
+    notes TEXT,
+    serviceDetails TEXT,
+    mechanicName TEXT,
+    isPickupService INTEGER NOT NULL DEFAULT 0,
+    serviceLocation TEXT,
+    adminNotes TEXT,
+    statusHistory TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (carId) REFERENCES cars(id) ON DELETE CASCADE
+      )
     ''');
 
     await db.execute('''

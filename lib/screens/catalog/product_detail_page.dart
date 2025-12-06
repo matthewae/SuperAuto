@@ -38,11 +38,14 @@ class ProductDetailPage extends ConsumerWidget {
             Text('Rp ${product.price.toStringAsFixed(0)}'),
             const SizedBox(height: 12),
             GFButton(
-              onPressed: () => ref.read(cartProvider.notifier).addItem(product),
-              text: 'Add to Cart',
-              icon: const Icon(Icons.add_shopping_cart),
-              color: const Color(0xFF1E88E5),
-              blockButton: true,
+                onPressed: () {
+                  ref.read(cartProvider.notifier).addItem(
+                    productId: product.id,
+                    productName: product.name,
+                    price: product.price,
+                    imageUrl: product.imageUrl, // if available in your Product model
+                  );
+                }
             ),
           ],
         ),

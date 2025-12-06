@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user.dart';
 import '../models/car.dart';
@@ -14,30 +13,184 @@ import '../models/loyalty_points.dart';
 import '../models/enums.dart';
 import '../services/auth_service.dart';
 import '../data/dao/product_dao.dart';
+import '../data/dao/car_dao.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _uuid = Uuid();
 
 // Auth
-final authProvider = StateProvider<User?>((ref) => null);
+
+final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
+  return AuthNotifier();
+});
+
+class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
+  final AuthService _authService = AuthService();
+  bool _isInitialized = false;
+
+  AuthNotifier() : super(const AsyncValue.loading()) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await _authService.init();
+      final user = _authService.currentUser();
+      print('AuthNotifier initialized. User: $user');
+      state = AsyncValue.data(user);
+    } catch (e, stack) {
+      print('Error initializing AuthNotifier: $e\n$stack');
+      state = AsyncValue.error(e, stack);
+    } finally {
+      _isInitialized = true;
+    }
+  }
+
+  Future<User?> login(String email, String password) async {
+    try {
+      state = const AsyncValue.loading();
+      print('Attempting login for email: $email');
+
+      // Make sure to await the login operation
+      final user = await _authService.login(email, password);
+
+      if (user != null) {
+        print('User logged in - ID: ${user.id}, Email: ${user.email}');
+        state = AsyncValue.data(user);
+        return user;
+      } else {
+        print('Login failed - Invalid credentials for email: $email');
+        state = const AsyncValue.data(null);
+        return null;
+      }
+    } catch (e, stack) {
+      print('Login error: $e\n$stack');
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  // In AuthNotifier class
+  Future<void> logout() async {
+    try {
+      print('Starting logout process...');
+      // Clear any user data
+      await _authService.logout();
+      // Reset state
+      state = const AsyncValue.data(null);
+      print('Logout successful');
+    } catch (e, stack) {
+      print('Error during logout: $e\n$stack');
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+  User? get currentUser => state.when(
+    data: (user) => user,
+    loading: () => null,
+    error: (_, __) => null,
+  );
+
+  bool get isInitialized => _isInitialized;
+}
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 /// Provider untuk menyimpan user aktif
 final userStateProvider = StateProvider<User?>((ref) => null);
 final productDaoProvider = Provider<ProductDao>((ref) => ProductDao());
+final carDaoProvider = Provider<CarDao>((ref) => CarDao());
 
 
 // Cars
 class CarsNotifier extends StateNotifier<List<Car>> {
-  CarsNotifier() : super(const []);
-  void add(Car car) => state = [...state, car];
-  void remove(String id) => state = state.where((c) => c.id != id).toList();
-  void update(Car car) => state = [for (final c in state) if (c.id == car.id) car else c];
+  final CarDao _dao;
+  final Ref _ref;
+
+  CarsNotifier(this._dao, this._ref) : super(const []) {
+    _checkSchemaAndLoadCars();
+
+    _loadCars();
+    _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
+      _loadCars();
+    });
+  }
+
+  Future<void> _checkSchemaAndLoadCars() async {
+    await _dao.checkTableSchema();
+    await _loadCars();
+  }
+  Future<void> _loadCars() async {
+    final user = _ref.read(authProvider).value;
+    print('Loading cars. Current user: ${user?.id} (${user?.email})');  // This line is already there
+
+    if (user?.id != null) {
+      try {
+        print('Getting cars for user ID: ${user!.id}');  // Add this line
+        final cars = await _dao.getByUserId(user.id!);
+        print('Successfully loaded ${cars.length} cars for user ${user.id}');
+        state = cars;
+      } catch (e, stack) {
+        print('Error loading cars: $e\n$stack');
+        state = [];
+      }
+    } else {
+      print('No user logged in, clearing car list');
+      state = [];
+    }
+  }
+
+  Future<void> add(Car car) async {
+    await _dao.insert(car);
+    await _loadCars();
+  }
+
+  Future<void> updateCar(Car car) async {
+    await _dao.update(car);
+    await _loadCars();
+  }
+
+  Future<void> remove(String id) async {
+    await _dao.delete(id);
+    await _loadCars();
+  }
+
 }
 
-final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) => CarsNotifier());
-final mainCarIdProvider = StateProvider<String>((ref) => '');
+final someOtherProvider = Provider<List<Car>>((ref) {
+  // This should be using getByUserId, not getting all cars
+  final user = ref.watch(authProvider).value;
+  if (user == null) return [];
+  return ref.watch(carsProvider);
+});
 
-// Products
+final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) {
+  return CarsNotifier(
+    ref.read(carDaoProvider),
+    ref,
+  );
+});
+
+
+final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
+  return MainCarNotifier();
+});
+
+class MainCarNotifier extends StateNotifier<String> {
+  MainCarNotifier() : super('') {
+    _loadMainCarId();
+  }
+
+  Future<void> _loadMainCarId() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('mainCarId') ?? '';
+  }
+
+  Future<void> setMainCarId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('mainCarId', id);
+    state = id;
+  }
+}
 // Products
 class ProductNotifier extends StateNotifier<List<Product>> {
   final ProductDao dao;
@@ -105,26 +258,72 @@ final productsProvider = StateNotifierProvider<ProductNotifier, List<Product>>(
 // Cart
 class CartNotifier extends StateNotifier<Cart> {
   CartNotifier() : super(const Cart());
-  void addItem(Product product, {int quantity = 1}) {
-    final existing = state.items.where((i) => i.productId == product.id).toList();
-    List<CartItem> newItems = [...state.items];
-    if (existing.isEmpty) {
-      newItems.add(CartItem(productId: product.id, quantity: quantity, price: product.price));
-    } else {
-      final idx = newItems.indexWhere((i) => i.productId == product.id);
-      final curr = newItems[idx];
-      newItems[idx] = CartItem(productId: curr.productId, quantity: curr.quantity + quantity, price: curr.price);
-    }
-    state = Cart(items: newItems, appliedPromoId: state.appliedPromoId);
-  }
-  void removeItem(String productId) {
-    state = Cart(items: state.items.where((i) => i.productId != productId).toList(), appliedPromoId: state.appliedPromoId);
-  }
-  void clear() => state = const Cart();
-  void applyPromo(String? promoId) => state = Cart(items: state.items, appliedPromoId: promoId);
-}
-final cartProvider = StateNotifierProvider<CartNotifier, Cart>((ref) => CartNotifier());
 
+  void addItem({
+    required String productId,
+    required String productName,
+    required double price,
+    int quantity = 1,
+    String? imageUrl,
+  }) {
+    final existingIndex = state.items.indexWhere((item) => item.productId == productId);
+
+    if (existingIndex >= 0) {
+      // Update existing item
+      final existingItem = state.items[existingIndex];
+      final updatedItems = List<CartItem>.from(state.items);
+      updatedItems[existingIndex] = existingItem.copyWith(
+        quantity: existingItem.quantity + quantity,
+      );
+      state = state.copyWith(items: updatedItems);
+    } else {
+      // Add new item
+      final newItem = CartItem(
+        productId: productId,
+        productName: productName,
+        price: price,
+        quantity: quantity,
+        imageUrl: imageUrl,
+      );
+      state = state.copyWith(
+          items: [...state.items, newItem]
+      );
+    }
+  }
+
+  void updateQuantity(String productId, int newQuantity) {
+    if (newQuantity <= 0) {
+      removeItem(productId);
+      return;
+    }
+
+    final index = state.items.indexWhere((item) => item.productId == productId);
+    if (index >= 0) {
+      final updatedItems = List<CartItem>.from(state.items);
+      updatedItems[index] = updatedItems[index].copyWith(quantity: newQuantity);
+      state = state.copyWith(items: updatedItems);
+    }
+  }
+
+  void removeItem(String productId) {
+    state = state.copyWith(
+      items: state.items.where((item) => item.productId != productId).toList(),
+    );
+  }
+
+  void clear() {
+    state = const Cart();
+  }
+
+  void applyPromo(String? promoId) {
+    state = state.copyWith(appliedPromoId: promoId);
+  }
+}
+
+// Provider
+final cartProvider = StateNotifierProvider<CartNotifier, Cart>((ref) {
+  return CartNotifier();
+});
 // Orders (simple list)
 class OrdersNotifier extends StateNotifier<List<Order>> {
   OrdersNotifier() : super(const []);
@@ -133,25 +332,25 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<Order>>((ref) => OrdersNotifier());
 
 // Bookings
+// In app_providers.dart
 class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
   BookingsNotifier() : super(const []);
-  void add(ServiceBooking b) => state = [...state, b];
-  void updateStatus(String id, ServiceStatus status) => state = [
-        for (final b in state)
-          if (b.id == id)
-            ServiceBooking(
-              id: b.id,
-              userId: b.userId,
-              carId: b.carId,
-              type: b.type,
-              workshop: b.workshop,
-              scheduledAt: b.scheduledAt,
-              estimatedCost: b.estimatedCost,
-              status: status,
-            )
-          else
-            b
-      ];
+
+
+  void add(ServiceBooking booking) => state = [...state, booking];
+
+  void updateStatus(String id, String status) {
+    state = [
+      for (final booking in state)
+        if (booking.id == id)
+          booking.copyWith(
+            status: status,
+            updatedAt: DateTime.now(),
+          )
+        else
+          booking,
+    ];
+  }
 }
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) => BookingsNotifier());
 

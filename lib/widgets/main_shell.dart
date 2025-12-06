@@ -5,7 +5,6 @@ import 'neumorphic_header.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({required this.child, super.key});
-
   final Widget child;
 
   @override
@@ -18,55 +17,50 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true, // WAJIB! Biar bottom nav nembus & header bisa nembus status bar
       body: Column(
         children: [
-          NeumorphicHeader(
-            title: _getTitleForIndex(_currentIndex),
+          // HEADER + STATUS BAR PADDING
+          Container(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).viewPadding.top, // ini yang bikin nggak kepotong!
+              left: 16,
+              right: 16,
+              bottom: 8,
+            ),
+            child: NeumorphicHeader(
+              title: _getTitleForIndex(_currentIndex),
+              subtitle: _currentIndex == 0 ? 'Selamat datang kembali!' : null,
+            ),
           ),
+          // ISI HALAMAN
           Expanded(child: widget.child),
         ],
       ),
-      bottomNavigationBar: NeumorphicBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          _onItemTapped(index, context);
-        },
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewPadding.bottom, // biar nggak ketutup notch
+          left: 16,
+          right: 16,
+        ),
+        child: NeumorphicBottomNav(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() => _currentIndex = index);
+            _onItemTapped(index, context);
+          },
+        ),
       ),
     );
   }
 
   String _getTitleForIndex(int index) {
-    switch (index) {
-      case 0:
-        return 'Home';
-      case 1:
-        return 'Cars';
-      case 2:
-        return 'Catalog';
-      case 3:
-        return 'Profile';
-      default:
-        return 'SuperAuto';
-    }
+    const titles = ['Home', 'Riwayat', 'Catalog', 'Profile'];
+    return titles[index];
   }
 
   void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        GoRouter.of(context).go('/home');
-        break;
-      case 1:
-        GoRouter.of(context).go('/cars');
-        break;
-      case 2:
-        GoRouter.of(context).go('/catalog');
-        break;
-      case 3:
-        GoRouter.of(context).go('/profile');
-        break;
-    }
+    const paths = ['/home', '/history', '/catalog', '/profile'];
+    GoRouter.of(context).go(paths[index]);
   }
 }

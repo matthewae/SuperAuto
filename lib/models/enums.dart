@@ -15,7 +15,19 @@ extension ServiceStatusExt on ServiceStatus {
         .firstWhere((e) => e.toString().split('.').last == val);
   }
 }
+  enum BookingStatus {
+  pending('Menunggu Konfirmasi'),
+  confirmed('Dikonfirmasi'),
+  inProgress('Sedang Dikerjakan'),
+  waitingParts('Menunggu Part'),
+  waitingPayment('Menunggu Pembayaran'),
+  readyForPickup('Siap Diambil'),
+  completed('Selesai'),
+  cancelled('Dibatalkan');
 
+  final String displayName;
+  const BookingStatus(this.displayName);
+}
 enum ServiceType {
   routine,
   major,

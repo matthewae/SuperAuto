@@ -12,6 +12,7 @@ class User {
     required this.name,
     this.role = 'user',
   });
+  String get idString => id?.toString() ?? '';
 
   Map<String, dynamic> toMap() {
     return {

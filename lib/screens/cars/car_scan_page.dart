@@ -20,63 +20,142 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
   final _uuid = const Uuid();
   bool _added = false;
 
-  void _addFromMap(Map<String, dynamic> data) {
-    final car = Car(
-      id: _uuid.v4(),
-      brand: data['brand'] ?? 'Unknown',
-      model: data['model'] ?? 'Unknown',
-      year: (data['year'] ?? 0) is int ? data['year'] : int.tryParse('${data['year']}') ?? 0,
-      plateNumber: data['plate'] ?? 'N/A',
-      vin: data['vin'] ?? 'N/A',
-      engineNumber: data['engine'] ?? 'N/A',
-      initialKm: (data['km'] ?? 0) is int ? data['km'] : int.tryParse('${data['km']}') ?? 0,
-    );
-    ref.read(carsProvider.notifier).add(car);
-    final currentMain = ref.read(mainCarIdProvider);
-    if (currentMain.isEmpty) {
-      ref.read(mainCarIdProvider.notifier).state = car.id;
+  Future<bool> _waitForAuthInitialization() async {
+    final authNotifier = ref.read(authProvider.notifier);
+    if (authNotifier is! AuthNotifier) return false;
+    
+    int attempts = 0;
+    while (!authNotifier.isInitialized && attempts < 10) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
     }
-    setState(() => _added = true);
+    return authNotifier.isInitialized;
   }
 
+  Future<void> _addFromMap(Map<String, dynamic> data) async {
+    try {
+      // Wait for auth to initialize
+      final isInitialized = await _waitForAuthInitialization();
+      if (!isInitialized) {
+        throw Exception('Gagal memuat data pengguna. Silakan coba lagi.');
+      }
+
+      // Get the current auth state
+      final authState = ref.read(authProvider);
+      final currentUser = authState.when(
+        data: (user) => user,
+        loading: () {
+          print('Auth state is still loading...');
+          return null;
+        },
+        error: (error, stack) {
+          print('Error getting auth state: $error');
+          return null;
+        },
+      );
+
+      if (currentUser == null) {
+        throw Exception('Anda harus login terlebih dahulu untuk menambahkan mobil.');
+      }
+
+      print('Adding car for user: ${currentUser.idString}');
+
+      final car = Car(
+        id: _uuid.v4(),
+        userId: currentUser.id!,  // Make sure this is the correct user ID
+        brand: data['brand'] ?? 'Unknown',
+        model: data['model'] ?? 'Unknown',
+        year: (data['year'] ?? 0) is int ? data['year'] : int.tryParse('${data['year']}') ?? 0,
+        plateNumber: data['plate'] ?? 'N/A',
+        vin: data['vin'] ?? 'N/A',
+        engineNumber: data['engine'] ?? 'N/A',
+        initialKm: (data['km'] ?? 0) is int ? data['km'] : int.tryParse('${data['km']}') ?? 0,
+      );
+
+      await ref.read(carsProvider.notifier).add(car);
+
+      final currentMain = ref.read(mainCarIdProvider);
+      if (currentMain.isEmpty) {
+        await ref.read(mainCarIdProvider.notifier).setMainCarId(car.id);
+      }
+
+      if (mounted) {
+        setState(() => _added = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mobil berhasil ditambahkan')),
+        );
+      }
+    } catch (e) {
+      print('Error in _addFromMap: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menambahkan mobil: ${e.toString()}')),
+        );
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: GFAppBar(title: const Text('Scan QR Registrasi Mobil')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const NeumorphicHeader(title: 'Registrasi Cepat', subtitle: 'Scan QR atau input manual'),
-            if (!kIsWeb)
-              Expanded(
-                child: MobileScanner(
-                  onDetect: (capture) {
-                    if (_added) return;
-                    final raw = capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue : null;
-                    if (raw != null) {
-                      try {
-                        final data = jsonDecode(raw);
-                        if (data is Map<String, dynamic>) {
-                          _addFromMap(data);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mobil ditambahkan')));
+      body: SafeArea(  // tambahin ini biar aman
+        child: SingleChildScrollView(  // INI YANG PALING PENTING!!!
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const NeumorphicHeader(
+                title: 'Registrasi Cepat',
+                subtitle: 'Scan QR atau input manual',
+              ),
+              const SizedBox(height: 16),
+
+              // Scanner (tetap Expanded, tapi dibungkus SizedBox biar bisa scroll)
+              if (!kIsWeb)
+                SizedBox(
+                  height: 300, // batasi tinggi scanner
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: MobileScanner(
+                      onDetect: (capture) {
+                        if (_added) return;
+                        final raw = capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue : null;
+                        if (raw != null) {
+                          try {
+                            final data = jsonDecode(raw);
+                            if (data is Map<String, dynamic>) {
+                              _addFromMap(data);
+                            }
+                          } catch (_) {
+                            // ignore
+                          }
                         }
-                      } catch (_) {
-                        // ignore malformed
-                      }
-                    }
-                  },
+                      },
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(child: Text('Scan QR tidak tersedia di web')),
                 ),
-              )
-            else
-              const Text('Scan QR tidak didukung di web, gunakan input manual.'),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 12),
-            const Text('Input Manual'),
-            const SizedBox(height: 8),
-            _ManualForm(onSubmit: _addFromMap),
-          ],
+
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              const Text('Atau Input Manual', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+
+              // Form Manual — sekarang bisa scroll!
+              _ManualForm(onSubmit: _addFromMap),
+
+              const SizedBox(height: 100), // jarak bawah biar tombol nggak ketutup keyboard
+            ],
+          ),
         ),
       ),
     );
