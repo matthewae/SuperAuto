@@ -111,10 +111,15 @@ class HistoryListNotifier extends StateNotifier<List<HistoryEntry>> {
       // =====================
       // FILTER TIPE TRANSAKSI
       // =====================
-      bool isTypeValid = switch (typeFilter) {
-        TransactionTypeFilter.all => true,
-        TransactionTypeFilter.spareParts => entry.type == 'Sale',
-      };
+      bool isTypeValid;
+      switch (typeFilter) {
+        case TransactionTypeFilter.all:
+          isTypeValid = true;
+          break;
+        case TransactionTypeFilter.spareParts:
+          isTypeValid = entry.type == 'Sale';
+          break;
+      }
 
       return isDateValid && isTypeValid;
     }).toList();
