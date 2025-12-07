@@ -76,7 +76,7 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
 
       final currentMain = ref.read(mainCarIdProvider);
       if (currentMain.isEmpty) {
-        await ref.read(mainCarIdProvider.notifier).setMainCarId(car.id);
+        await ref.read(mainCarIdProvider.notifier).setMainCarId(currentUser.idString, car.id);
       }
 
       if (mounted) {

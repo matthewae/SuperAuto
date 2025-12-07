@@ -474,34 +474,105 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 // Loyalty
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);
 
-// Main Car
 final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
-  return MainCarNotifier();
+  final notifier = MainCarNotifier(ref: ref);
+
+  // Dengarkan perubahan auth
+  ref.listen<AsyncValue<User?>>(authProvider, (_, next) {
+    final user = next.value;
+    if (user != null) {
+      notifier._updateCurrentUser(user);
+    }
+  });
+
+  return notifier;
 });
 
-// In app_providers.dart, update the MainCarNotifier class
 class MainCarNotifier extends StateNotifier<String> {
-  MainCarNotifier() : super('') {
-    _loadMainCarId();
+  MainCarNotifier({required this.ref}) : super('') {
+    _init();
+  }
+
+  final Ref ref;
+  String? _currentUserId;
+  SharedPreferences? _prefs;
+  bool _isInitialized = false;
+
+  Future<void> _init() async {
+    if (_isInitialized) return;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      final currentUser = ref.read(authProvider).value;
+      if (currentUser != null) {
+        _currentUserId = currentUser.idString;
+        await _loadMainCarId();
+      }
+      _isInitialized = true;
+    } catch (e) {
+      print('Error initializing MainCarNotifier: $e');
+      _isInitialized = true;
+    }
+  }
+
+  Future<void> _updateCurrentUser(User? user) async {
+    final newUserId = user?.idString;
+    if (newUserId != _currentUserId) {
+      _currentUserId = newUserId;
+      if (_currentUserId != null) {
+        await _loadMainCarId();
+      } else {
+        state = ''; // Pengguna logout, hapus state
+      }
+    }
   }
 
   Future<void> _loadMainCarId() async {
-    final prefs = await SharedPreferences.getInstance();
-    state = prefs.getString('mainCarId') ?? '';
+    if (_currentUserId == null || _prefs == null) {
+      state = '';
+      return;
+    }
+
+    try {
+      // Key tetap 'main_car_[userId]'
+      final mainCarId = _prefs!.getString('main_car_$_currentUserId');
+      if (mainCarId != null && mainCarId.isNotEmpty) {
+        state = mainCarId;
+      } else {
+        state = '';
+      }
+    } catch (e) {
+      print('Error loading main car ID: $e');
+      state = '';
+    }
   }
 
-  Future<void> setMainCarId(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('mainCarId', id);
-    state = id;
+  // INI ADALAH FUNGSI YANG SUDAH DIPERBAIKI
+  Future<void> setMainCarId(String userId, String carId) async {
+    if (_prefs == null) return;
+
+    try {
+      // HANYA HAPUS MOBIL UTAMA LAMA UNTUK PENGGUNA YANG SAMA (userId)
+      // Ini mencegah bug di mana mobil utama user lain terhapus.
+      final oldMainCarId = _prefs!.getString('main_car_$userId');
+      if (oldMainCarId != null) {
+        print('Menghapus mobil utama lama untuk user $userId: $oldMainCarId');
+        await _prefs!.remove('main_car_$userId');
+      }
+
+      // Tetapkan mobil utama baru untuk pengguna ini
+      await _prefs!.setString('main_car_$userId', carId);
+      print('Menetapkan mobil utama baru untuk user $userId: $carId');
+
+      // Perbarui state jika ini untuk pengguna saat ini
+      if (userId == _currentUserId) {
+        print('Memperbarui state untuk pengguna saat ini ($userId) dengan mobil utama: $carId');
+        state = carId;
+      }
+    } catch (e) {
+      print('Error setting main car: $e');
+      rethrow;
+    }
   }
-
-  // Add this method to clear the main car ID
-  Future<void> clearMainCarId() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('mainCarId');
-    state = '';
-  }
-
-
 }
+
+

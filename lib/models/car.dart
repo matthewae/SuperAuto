@@ -72,4 +72,32 @@ class Car {
           : null,
     );
   }
+
+  Car copyWith({
+    String? id,
+    String? brand,
+    String? model,
+    int? year,
+    String? plateNumber,
+    String? vin,
+    String? engineNumber,
+    int? initialKm,
+    int? userId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Car(
+      id: id ?? this.id,
+      brand: brand ?? this.brand,
+      model: model ?? this.model,
+      year: year ?? this.year,
+      plateNumber: plateNumber ?? this.plateNumber,
+      vin: vin ?? this.vin,
+      engineNumber: engineNumber ?? this.engineNumber,
+      initialKm: initialKm ?? this.initialKm,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

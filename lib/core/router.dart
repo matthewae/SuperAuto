@@ -24,6 +24,7 @@ import '../screens/loyalty/loyalty_page.dart';
 import '../screens/profile/profile_page.dart';
 import '../widgets/main_shell.dart';
 import '../screens/booking/bookings_page.dart';
+import '../screens/cars/car_edit_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -86,6 +87,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/cars/:id',
         name: 'car-detail',
         builder: (context, state) => CarDetailPage(carId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/cars/:id/edit',
+        name: 'car-edit',  // This is the name you're using in pushNamed
+        builder: (context, state) {
+          final carId = state.pathParameters['id']!;
+          return CarEditPage(carId: carId);
+        },
       ),
       GoRoute(
         path: '/booking',

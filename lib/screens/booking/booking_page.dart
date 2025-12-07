@@ -91,7 +91,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         // If no main car is set, use the first car if available
         if (userCars.isNotEmpty) {
           // Update main car to the first car
-          await ref.read(mainCarIdProvider.notifier).setMainCarId(userCars.first.id);
+          await ref.read(mainCarIdProvider.notifier).setMainCarId(user.idString,userCars.first.id);
         } else {
           throw Exception('Silakan pilih mobil utama terlebih dahulu');
         }
