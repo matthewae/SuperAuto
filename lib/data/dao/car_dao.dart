@@ -15,22 +15,20 @@ class CarDao {
     return results.map((e) => Car.fromMap(e)).toList();
   }
 
-  // In CarDao class
-  // In car_dao.dart
   Future<List<Car>> getByUserId(String userId) async {
-    print('🔍 Getting cars for user ID: $userId');
+    print('Getting cars for user ID: $userId');
     final results = await db.query(
       'cars',
       where: 'userId = ?',
       whereArgs: [userId],
     );
-    print('✅ Found ${results.length} cars for user $userId');
+    print('Found ${results.length} cars for user $userId');
     return results.map((e) => Car.fromMap(e)).toList();
   }
 
   Future<void> checkTableSchema() async {
     final tableInfo = await db.rawQuery('PRAGMA table_info(cars)');
-    print('📊 Cars table schema:');
+    print('Cars table schema:');
     for (var column in tableInfo) {
       print('  - ${column['name']}: ${column['type']} ${column['pk'] == 1 ? 'PRIMARY KEY' : ''}');
     }
@@ -59,7 +57,6 @@ class CarDao {
     );
   }
 
-  // Delete a car
   Future<int> delete(String id) async {
     return await db.delete(
       'cars',

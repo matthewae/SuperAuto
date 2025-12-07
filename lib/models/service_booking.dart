@@ -3,13 +3,13 @@ class ServiceBooking {
   final String id;
   final String userId;
   final String carId;
-  final String serviceType;  // Changed from type to serviceType
+  final String serviceType;
   final DateTime scheduledAt;
   final double estimatedCost;
   final String status;
-  final String? workshop;    // Make workshop nullable
+  final String? workshop;
   final String? notes;
-  final String? adminNotes;  // Tambah field untuk catatan admin
+  final String? adminNotes;
   final Map<String, dynamic>? statusHistory;
   final DateTime createdAt;
   final DateTime? updatedAt;

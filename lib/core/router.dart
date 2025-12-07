@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:superauto/screens/booking/booking_detail_page.dart';
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_product.dart';
 import '../screens/auth/login_page.dart';
@@ -22,6 +23,7 @@ import '../screens/promo/promo_page.dart';
 import '../screens/loyalty/loyalty_page.dart';
 import '../screens/profile/profile_page.dart';
 import '../widgets/main_shell.dart';
+import '../screens/booking/bookings_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -89,6 +91,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/booking',
         name: 'booking',
         builder: (context, state) => const BookingPage(),
+      ),
+      GoRoute(
+        path: '/bookings',
+        name: 'bookings',
+        builder: (context, state) => const BookingsPage(),
+      ),
+      GoRoute(
+        path: '/booking-detail/:id',
+        name: 'booking-detail',
+        builder: (context, state) {
+          final bookingId = state.pathParameters['id']!;
+          return BookingDetailPage(bookingId: bookingId);
+        },
       ),
       GoRoute(
         path: '/tracking',

@@ -22,6 +22,25 @@ import '../data/db/app_database.dart';
 
 const _uuid = Uuid();
 
+
+final userBookingsProviderAlt = FutureProvider.autoDispose<List<ServiceBooking>>((ref) async {
+  final user = ref.watch(authProvider).valueOrNull;
+
+  if (user == null) {
+    return [];
+  }
+
+  final dao = ref.watch(serviceBookingDaoProvider);
+
+  // Force reload when bookingsProvider changes
+  ref.watch(bookingsProvider);
+
+  return await dao.getByUserId(user.idString);
+});
+
+
+
+
 // Core Providers
 final databaseProvider = Provider<Database>((ref) {
   throw UnimplementedError('Database provider not initialized');
@@ -483,4 +502,6 @@ class MainCarNotifier extends StateNotifier<String> {
     await prefs.remove('mainCarId');
     state = '';
   }
+
+
 }

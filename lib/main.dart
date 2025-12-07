@@ -5,6 +5,7 @@ import 'app.dart';
 import 'services/notification_service.dart';
 import 'data/db/app_database.dart';
 import 'providers/app_providers.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 // main.dart
 void main() async {
@@ -16,7 +17,7 @@ void main() async {
 
   // Initialize notifications
   await NotificationService().init();
-
+  await initializeDateFormatting('id_ID', null);
   runApp(
     ProviderScope(
       overrides: [

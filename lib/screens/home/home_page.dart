@@ -42,9 +42,18 @@ class HomePage extends StatelessWidget {
           Card(
             child: ListTile(
               title: const Text('Jadwal Servis Terdekat'),
-              subtitle: const Text('Belum ada jadwal'),
+              subtitle: const Text('Lihat jadwal servis Anda'),
               trailing: const Icon(Icons.schedule),
               onTap: () => context.push('/booking'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              title: const Text('Daftar Booking'),
+              subtitle: const Text('Lihat riwayat booking Anda'),
+              trailing: const Icon(Icons.history),
+              onTap: () => context.push('/bookings'), // Add this route in your router
             ),
           ),
           const SizedBox(height: 12),
