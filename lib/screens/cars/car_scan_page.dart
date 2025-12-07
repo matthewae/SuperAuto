@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/car.dart';
 import '../../providers/app_providers.dart';
-import '../../widgets/neumorphic_header.dart';
 
 class CarScanPage extends ConsumerStatefulWidget {
   const CarScanPage({super.key});
@@ -97,25 +94,45 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Scan QR Registrasi Mobil')),
-      body: SafeArea(  // tambahin ini biar aman
-        child: SingleChildScrollView(  // INI YANG PALING PENTING!!!
-          padding: const EdgeInsets.all(16),
+      appBar: AppBar(
+        title: const Text('Registrasi Mobil'),
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const NeumorphicHeader(
-                title: 'Registrasi Cepat',
-                subtitle: 'Scan QR atau input manual',
+              const Text(
+                'Registrasi Mobil Baru',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-
-              // Scanner (tetap Expanded, tapi dibungkus SizedBox biar bisa scroll)
+              const SizedBox(height: 8),
+              const Text(
+                'Scan QR code atau isi form manual di bawah',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              
               if (!kIsWeb)
-                SizedBox(
-                  height: 300, // batasi tinggi scanner
+                Container(
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                     child: MobileScanner(
                       onDetect: (capture) {
                         if (_added) return;
@@ -138,22 +155,37 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
                 Container(
                   height: 200,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  child: const Center(child: Text('Scan QR tidak tersedia di web')),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.qr_code_scanner, size: 48, color: Colors.grey),
+                        SizedBox(height: 8),
+                        Text('Scan QR tidak tersedia di web'),
+                      ],
+                    ),
+                  ),
                 ),
 
+              const SizedBox(height: 32),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text('ATAU', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
               const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 16),
-              const Text('Atau Input Manual', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-
-              // Form Manual — sekarang bisa scroll!
+              
               _ManualForm(onSubmit: _addFromMap),
-
-              const SizedBox(height: 100), // jarak bawah biar tombol nggak ketutup keyboard
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -181,16 +213,88 @@ class _ManualFormState extends State<_ManualForm> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(controller: _brand, decoration: const InputDecoration(labelText: 'Merek')),
-        TextField(controller: _model, decoration: const InputDecoration(labelText: 'Model')),
-        TextField(controller: _year, decoration: const InputDecoration(labelText: 'Tahun'), keyboardType: TextInputType.number),
-        TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Nomor Polisi')),
-        TextField(controller: _vin, decoration: const InputDecoration(labelText: 'Nomor Rangka (VIN)')),
-        TextField(controller: _engine, decoration: const InputDecoration(labelText: 'Nomor Mesin')),
-        TextField(controller: _km, decoration: const InputDecoration(labelText: 'Kilometer Awal'), keyboardType: TextInputType.number),
-        const SizedBox(height: 12),
-        GFButton(
+        TextFormField(
+          controller: _brand,
+          decoration: InputDecoration(
+            labelText: 'Merek',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _model,
+          decoration: InputDecoration(
+            labelText: 'Model',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _year,
+          decoration: InputDecoration(
+            labelText: 'Tahun',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _plate,
+          decoration: InputDecoration(
+            labelText: 'Nomor Polisi',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _vin,
+          decoration: InputDecoration(
+            labelText: 'Nomor Rangka (VIN)',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _engine,
+          decoration: InputDecoration(
+            labelText: 'Nomor Mesin',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _km,
+          decoration: InputDecoration(
+            labelText: 'Kilometer Awal',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
           onPressed: () {
             widget.onSubmit({
               'brand': _brand.text,
@@ -202,8 +306,22 @@ class _ManualFormState extends State<_ManualForm> {
               'km': int.tryParse(_km.text) ?? 0,
             });
           },
-          text: 'Simpan',
-          color: const Color(0xFF1E88E5),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 0,
+          ),
+          child: const Text(
+            'Simpan Data Mobil',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );
