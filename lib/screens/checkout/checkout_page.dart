@@ -52,7 +52,7 @@ class CheckoutPage extends ConsumerWidget {
 
                     final order = Order(
                       id: const Uuid().v4(),
-                      userId: user.idString,
+                      userId: user.id!,
                       items: cart.items
                           .map((item) => OrderItem(
                         id: const Uuid().v4(),

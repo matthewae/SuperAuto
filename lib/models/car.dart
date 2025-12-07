@@ -7,7 +7,7 @@ class Car {
   final String vin;
   final String engineNumber;
   final int initialKm;
-  final int userId;  // Changed from String to int
+  final int userId;
   final DateTime createdAt;
   final DateTime updatedAt;
 

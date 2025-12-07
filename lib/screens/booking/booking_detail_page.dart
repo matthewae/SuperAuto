@@ -289,7 +289,6 @@ class BookingDetailPage extends ConsumerWidget {
     bool isFirst = false,
     bool isLast = false,
   }) {
-
     String formattedDate;
     try {
       formattedDate = DateFormat('EEEE, d MMMM yyyy, HH:mm', 'id_ID').format(time);

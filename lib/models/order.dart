@@ -1,7 +1,7 @@
 // lib/models/order.dart
 class Order {
   final String id;
-  final String userId;
+  final int userId;
   final List<OrderItem> items;
   final double total;
   final DateTime createdAt;
@@ -45,7 +45,7 @@ class Order {
   factory Order.fromMap(Map<String, dynamic> map) {
     return Order(
       id: map['id'] as String,
-      userId: map['userId'] as String,
+      userId: map['userId'],
       items: (map['items'] as List<dynamic>)
           .map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
           .toList(),
@@ -77,7 +77,7 @@ class Order {
   }) {
     return Order(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
+      userId:this.userId,
       items: items ?? this.items,
       total: total ?? this.total,
       createdAt: createdAt ?? this.createdAt,

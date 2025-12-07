@@ -41,27 +41,19 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             child: ListTile(
-              title: const Text('Jadwal Servis Terdekat'),
-              subtitle: const Text('Lihat jadwal servis Anda'),
-              trailing: const Icon(Icons.schedule),
-              onTap: () => context.push('/booking'),
+              title: const Text('Booking Servis'),
+              subtitle: const Text('Jadwalkan servis mobil Anda'),
+              trailing: const Icon(Icons.build),
+              onTap: () => context.push('/booking'), // Add this route in your router
             ),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              title: const Text('Daftar Booking'),
-              subtitle: const Text('Lihat riwayat booking Anda'),
-              trailing: const Icon(Icons.history),
-              onTap: () => context.push('/bookings'), // Add this route in your router
-            ),
-          ),
+
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _buildActionButton(context, 'Booking Servis', Icons.build, () => context.push('/booking')),
+              _buildActionButton(context, 'Booking History', Icons.history, () => context.push('/bookings')),
               _buildActionButton(context, 'Katalog Produk', Icons.store, () => context.push('/catalog')),
               _buildActionButton(context, 'Promo', Icons.card_giftcard, () => context.push('/promo')),
               _buildActionButton(context, 'Rewards', Icons.redeem, () => context.push('/loyalty')),

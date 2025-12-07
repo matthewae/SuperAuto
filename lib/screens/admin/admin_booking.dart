@@ -19,7 +19,7 @@ class AdminBookingPage extends ConsumerWidget {
       ) async {
     try {
       final user = await ref.read(userDaoProvider).getUserById(userId);
-      final car = await ref.read(carDaoProvider).getById(carId); // No need to parse as int
+      final car = await ref.read(carDaoProvider).getById(carId);
 
       // Debug logs
       print('🔍 Fetching car details - CarID: $carId (type: ${carId.runtimeType})');
@@ -140,6 +140,10 @@ class AdminBookingPage extends ConsumerWidget {
                         _buildInfoRow('Layanan', booking.serviceType),
                         _buildInfoRow('Bengkel', booking.workshop),
                         _buildInfoRow('Tanggal', formattedDate),
+                        _buildInfoRow(
+                            'Perkiraan Biaya',
+                            'Rp${booking.estimatedCost.toStringAsFixed(0)}'
+                        ),
 
                         if (booking.notes?.isNotEmpty ?? false)
                           _buildInfoRow('Catatan', booking.notes,
