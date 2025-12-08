@@ -4,9 +4,7 @@ import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_providers.dart';
-import '../../models/car.dart';
-import 'package:uuid/uuid.dart';
-import '../../widgets/neumorphic_header.dart';
+
 
 class CarsListPage extends ConsumerWidget {
   const CarsListPage({super.key});

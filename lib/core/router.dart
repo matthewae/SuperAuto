@@ -20,7 +20,9 @@ import '../screens/checkout/checkout_page.dart';
 import '../screens/bundling/bundling_page.dart';
 import '../screens/promo/promo_page.dart';
 import '../screens/loyalty/loyalty_page.dart';
+import '../screens/history/order_history_page.dart';
 import '../screens/profile/profile_page.dart';
+import '../screens/profile/edit_profile_page.dart';
 import '../widgets/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -129,6 +131,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/loyalty',
         name: 'loyalty',
         builder: (context, state) => const LoyaltyPage(),
+      ),
+      GoRoute(
+        path: '/order-history',
+        name: 'order-history',
+        builder: (context, state) => const OrderHistoryPage(),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        name: 'edit-profile',
+        builder: (context, state) => const EditProfilePage(),
       ),
       // Rute lain akan ditambahkan seiring fitur dibangun
     ],

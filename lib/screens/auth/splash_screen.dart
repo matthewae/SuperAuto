@@ -25,6 +25,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final auth = ref.read(authServiceProvider);
     await auth.init(); // Initialize auth service to load current user
     final user = auth.currentUser();
+    ref.read(userStateProvider.notifier).state = user;
 
     if (isFirstLaunch) {
       await prefs.setBool('first_launch', false);
@@ -64,7 +65,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset('assets/logo.svg', height: 150),
+            Image.asset('assets/images/Ori.png', height: 150),
             const SizedBox(height: 24),
             Text(
               'SuperAuto',

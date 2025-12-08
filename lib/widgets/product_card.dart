@@ -19,7 +19,7 @@ class ProductCard extends StatelessWidget {
         content: Container(
           height: 120,
           alignment: Alignment.center,
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Text(product.imageUrl == null ? 'No Image' : 'Image'),
         ),
       ),

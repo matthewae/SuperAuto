@@ -20,6 +20,7 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   late final TextEditingController emailController;
   late final TextEditingController passwordController;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -54,7 +55,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SvgPicture.asset('assets/logo.svg', height: 100),
+                    Image.asset('assets/images/Ori.png', height: 100),
                     const SizedBox(height: 24),
                     Text(
                       'Selamat datang',
@@ -108,8 +109,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                     ),
                     const SizedBox(height: 24),
                     GFButton(

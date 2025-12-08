@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'neumorphic_bottom_nav.dart';
@@ -43,10 +44,12 @@ class _MainShellState extends State<MainShell> {
       case 0:
         return 'Home';
       case 1:
-        return 'Cars';
+        return 'Riwayat';
       case 2:
         return 'Catalog';
       case 3:
+        return 'Booking';
+      case 4:
         return 'Profile';
       default:
         return 'SuperAuto';
@@ -59,12 +62,15 @@ class _MainShellState extends State<MainShell> {
         GoRouter.of(context).go('/home');
         break;
       case 1:
-        GoRouter.of(context).go('/cars');
+        GoRouter.of(context).go('/history');
         break;
       case 2:
         GoRouter.of(context).go('/catalog');
         break;
       case 3:
+        GoRouter.of(context).go('/booking');
+        break;
+      case 4:
         GoRouter.of(context).go('/profile');
         break;
     }

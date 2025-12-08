@@ -15,11 +15,11 @@ class AuthService {
   }
 
   Future<void> _initializeAdmin() async {
-    print("AuthService: Initializing admin user...");
+
     try {
       final existingAdmin = await _userDao.getUserByEmail("admin@superauto.com");
       if (existingAdmin == null) {
-        print("AuthService: Admin user not found, inserting new admin...");
+
         await _userDao.insertUser(
           User(
             email: "admin@superauto.com",
@@ -28,12 +28,12 @@ class AuthService {
             role: "admin",
           ),
         );
-        print("AuthService: Admin user inserted successfully.");
+
       } else {
-        print("AuthService: Admin user already exists.");
+
       }
     } catch (e) {
-      print("AuthService: Error initializing admin user: $e");
+
       rethrow;
     }
   }

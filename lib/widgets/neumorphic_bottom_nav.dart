@@ -10,7 +10,8 @@ class NeumorphicBottomNav extends StatelessWidget {
     final items = const [
       _NavItem(Icons.home, 'Home'),
       _NavItem(Icons.history, 'Riwayat'),
-      _NavItem(Icons.shopping_cart, 'Cart'),
+      _NavItem(Icons.category, 'Catalog'),
+      _NavItem(Icons.book_online, 'Booking'),
       _NavItem(Icons.person, 'Profil'),
     ];
     return Padding(
@@ -27,10 +28,12 @@ class NeumorphicBottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               for (var i = 0; i < items.length; i++)
-                _NavButton(
-                  item: items[i],
-                  selected: i == currentIndex,
-                  onPressed: () => onTap(i),
+                Expanded(
+                  child: _NavButton(
+                    item: items[i],
+                    selected: i == currentIndex,
+                    onPressed: () => onTap(i),
+                  ),
                 )
             ],
           ),
@@ -66,9 +69,9 @@ class _NavButton extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(item.icon, color: selected ? const Color(0xFF1E88E5) : null),
+          Expanded(child: Icon(item.icon, color: selected ? const Color(0xFF1E88E5) : null)),
           const SizedBox(height: 4),
-          Text(item.label, style: TextStyle(color: selected ? const Color(0xFF1E88E5) : null)),
+          Expanded(child: Text(item.label, style: TextStyle(color: selected ? const Color(0xFF1E88E5) : null))),
         ],
       ),
     );

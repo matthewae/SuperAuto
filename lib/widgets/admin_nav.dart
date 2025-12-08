@@ -45,7 +45,7 @@ class AdminNav extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     decoration: isActive
                         ? BoxDecoration(
-                      color: Colors.blue.shade600.withOpacity(0.2),
+                      color: Colors.blue.shade600.withValues(alpha: 0.2),
                       border: Border(
                         left: BorderSide(color: Colors.blue.shade400, width: 4),
                       ),

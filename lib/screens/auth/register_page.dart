@@ -4,7 +4,7 @@ import 'package:getwidget/components/appbar/gf_appbar.dart';
 import 'package:getwidget/components/button/gf_button.dart';
 import 'package:getwidget/getwidget.dart'; // Added this import
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Added this import
+
 import '../../providers/app_providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -17,13 +17,17 @@ class RegisterPage extends ConsumerStatefulWidget {
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   late final TextEditingController emailController;
   late final TextEditingController passwordController;
+  late final TextEditingController confirmPasswordController;
   late final TextEditingController nameController;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
     super.initState();
     emailController = TextEditingController();
     passwordController = TextEditingController();
+    confirmPasswordController = TextEditingController();
     nameController = TextEditingController();
   }
 
@@ -31,6 +35,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     nameController.dispose();
     super.dispose();
   }
@@ -54,7 +59,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SvgPicture.asset('assets/logo.svg', height: 100),
+                    Image.asset('assets/images/Ori.png', height: 100),
                     const SizedBox(height: 24),
                     Text(
                       'Daftar Akun Baru',
@@ -127,14 +132,62 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: confirmPasswordController,
+                      decoration: InputDecoration(
+                        labelText: "Confirm Password",
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                        ),
+                        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscureConfirmPassword,
                     ),
                     const SizedBox(height: 24),
                     GFButton(
                       color: Theme.of(context).colorScheme.primary,
                       fullWidthButton: true,
                       onPressed: () async {
+                        if (passwordController.text != confirmPasswordController.text) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Password dan Konfirmasi Password tidak cocok.")),
+                          );
+                          return;
+                        }
                         final auth = ref.read(authServiceProvider);
 
                         final result = await auth.register(

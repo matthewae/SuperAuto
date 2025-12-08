@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/neumorphic_header.dart';
-import '../../widgets/neumorphic_bottom_nav.dart';
+
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -14,6 +15,38 @@ class HomePage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const NeumorphicHeader(title: "Selamat Datang", subtitle: "Jelajahi layanan kami"),
+          const SizedBox(height: 12),
+          CarouselSlider(
+            options: CarouselOptions(
+              height: 180.0,
+              enlargeCenterPage: true,
+              autoPlay: true,
+              aspectRatio: 16 / 9,
+              autoPlayCurve: Curves.fastOutSlowIn,
+              enableInfiniteScroll: true,
+              autoPlayAnimationDuration: const Duration(milliseconds: 800),
+              viewportFraction: 0.8,
+            ),
+            items: ['promo_1.png', 'promo_2.png', 'promo_3.png'].map((i) {
+              return Builder(
+                builder: (BuildContext context) {
+                  return Container(
+                    width: MediaQuery.of(context).size.width,
+                    margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                    decoration: BoxDecoration(
+                      color: Colors.amber,
+                      borderRadius: BorderRadius.circular(8.0),
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/$i'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
           const SizedBox(height: 12),
           Card(
             child: ListTile(
@@ -33,9 +66,13 @@ class HomePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.5,
             children: [
               GFButton(onPressed: () => context.push('/booking'), text: 'Booking Servis', icon: const Icon(Icons.build)),
               GFButton(onPressed: () => context.push('/catalog'), text: 'Katalog Produk', icon: const Icon(Icons.store)),

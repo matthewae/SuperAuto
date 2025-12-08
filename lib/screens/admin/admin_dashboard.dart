@@ -26,6 +26,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Center(
+          child: Image.asset(
+            'assets/images/Ori.png',
+            height: 40, // Sesuaikan tinggi sesuai kebutuhan
+          ),
+        ),
+      ),
       body: SafeArea(child: screens[_selectedIndex]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
