@@ -81,6 +81,12 @@ class HomePage extends StatelessWidget {
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : Theme.of(context).primaryColor;
+    final backgroundColor = isDark
+        ? Colors.white.withOpacity(0.1)
+        : Theme.of(context).primaryColor.withOpacity(0.1);
+
     return Expanded(
       child: Container(
         margin: const EdgeInsets.all(4),
@@ -104,12 +110,12 @@ class HomePage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      color: backgroundColor,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       icon,
-                      color: Theme.of(context).primaryColor,
+                      color: iconColor,
                       size: 20,
                     ),
                   ),
@@ -117,9 +123,10 @@ class HomePage extends StatelessWidget {
                   Text(
                     text,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ],
@@ -130,7 +137,6 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,7 +179,7 @@ class HomePage extends StatelessWidget {
               children: [
                 _buildActionButton(
                   context: context,
-                  text: 'Riwayat',
+                  text: 'Riwayat Service',
                   icon: Icons.history,
                   onTap: () => context.push('/bookings'),
                 ),

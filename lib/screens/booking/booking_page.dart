@@ -202,17 +202,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              NeumorphicHeader(
-                title: 'Atur Jadwal Servis',
-                subtitle: 'Pilih detail servis dan jadwal yang diinginkan',
-                trailing: NeumorphicIcon(
-                  Icons.calendar_today,
-                  size: 32,
-                  style: const NeumorphicStyle(depth: 8),
-                ),
-              ),
 
-              const SizedBox(height: 24),
 
               // Service Type
               _buildSectionTitle('Jenis Servis'),

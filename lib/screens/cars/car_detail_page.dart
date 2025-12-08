@@ -75,10 +75,7 @@ class CarDetailPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            NeumorphicHeader(
-              title: '${car.brand} ${car.model}',
-              subtitle: 'Tahun ${car.year} • ${car.plateNumber}',
-            ),
+
             const SizedBox(height: 8),
             _buildDetailRow('Tahun', car.year.toString()),
             _buildDetailRow('Nomor Polisi', car.plateNumber),
