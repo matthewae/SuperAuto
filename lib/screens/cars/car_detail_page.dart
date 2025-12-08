@@ -13,11 +13,13 @@ class CarDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cars = ref.watch(carsProvider);
-    final mainCarId = ref.watch(mainCarIdProvider);
-    final currentUser = ref.watch(authProvider).value;
+    Car? car;
+    try {
+      car = cars.firstWhere((c) => c.id == carId);
+    } catch (e) {
+      car = null;
+    }
 
-    // Find the car or show error if not found
-    final car = cars.firstWhereOrNull((c) => c.id == carId);
 
     if (car == null) {
       return Scaffold(
@@ -27,21 +29,39 @@ class CarDetailPage extends ConsumerWidget {
         ),
       );
     }
-
-    final isMain = mainCarId == car.id;
+    final currentUser = ref.watch(authProvider).value;
+    final isMain = car.isMain;
 
     Future<void> setAsMainCar() async {
-      if (currentUser == null) return;
+      if (currentUser == null || car == null) return;
 
       try {
-        await ref
-            .read(mainCarIdProvider.notifier)
-            .setMainCarId(currentUser.idString, car.id);
+        // 1. Hapus status 'isMain' untuk SEMUA mobil milik user ini
+        final userCars = ref.read(carsProvider);
+        for (final userCar in userCars) {
+          if (userCar.isMain) {
+            await ref.read(carDaoProvider).updateMainCarStatus(
+                  userCar.id, 
+                  false,
+                  userId: currentUser.id.toString(),
+                );
+          }
+        }
+
+        // 2. Tetapkan status 'isMain' untuk mobil yang dipilih
+        await ref.read(carDaoProvider).updateMainCarStatus(
+              car!.id, 
+              true,
+              userId: currentUser.id.toString(),
+            );
+
+        // 3. REFRESH state agar UI langsung update
+        ref.invalidate(carsProvider);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${car.brand} ${car.model} dijadikan mobil utama'),
+              content: Text('${car!.brand} ${car!.model} dijadikan mobil utama'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -64,8 +84,8 @@ class CarDetailPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              context.pushNamed('car-edit', pathParameters: {'id': car.id});
+            onPressed: car == null ? null : () {
+              context.pushNamed('car-edit', pathParameters: {'id': car!.id});
             },
           ),
         ],
@@ -75,50 +95,24 @@ class CarDetailPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            const SizedBox(height: 8),
-            _buildDetailRow('Tahun', car.year.toString()),
-            _buildDetailRow('Nomor Polisi', car.plateNumber),
-            _buildDetailRow('Nomor Rangka (VIN)', car.vin),
-            _buildDetailRow('Nomor Mesin', car.engineNumber),
-            _buildDetailRow('KM Awal', car.initialKm.toString()),
+            Text('Tahun: ${car.year}'),
+            Text('Nomor Polisi: ${car.plateNumber}'),
+            Text('Nomor Rangka (VIN): ${car.vin}'),
+            Text('Nomor Mesin: ${car.engineNumber}'),
+            Text('KM Awal: ${car.initialKm}'),
             const SizedBox(height: 16),
-
-            // Main Car Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: isMain ? null : setAsMainCar,
-                icon: Icon(isMain ? Icons.star : Icons.star_border),
-                label: Text(
-                  isMain ? 'Mobil Utama' : 'Jadikan Mobil Utama',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  backgroundColor: isMain
-                      ? Colors.orange.withOpacity(0.1)
-                      : Theme.of(context).primaryColor,
-                  foregroundColor: isMain ? Colors.orange : Colors.white,
-                  elevation: 0,
-                ),
-              ),
+            GFButton(
+              onPressed: isMain ? null : setAsMainCar,
+              text: isMain ? 'Sudah jadi mobil utama' : 'Jadikan mobil utama',
+              color: const Color(0xFF1E88E5),
             ),
-
-            // Delete Button
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _showDeleteConfirmation(context, ref, carId),
+                onPressed: car == null ? null : () => _showDeleteConfirmation(context, ref, car!.id, isMain),
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: const Text(
-                  'Hapus Mobil',
-                  style: TextStyle(color: Colors.red),
-                ),
+                label: const Text('Hapus Mobil', style: TextStyle(color: Colors.red)),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -160,18 +154,12 @@ class CarDetailPage extends ConsumerWidget {
   }
 
   Future<void> _showDeleteConfirmation(
-      BuildContext context,
-      WidgetRef ref,
-      String carId,
-      ) async {
-    final isMain = ref.read(mainCarIdProvider) == carId;
-
+      BuildContext context, WidgetRef ref, String carId, bool isMain) async {
     if (isMain) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Tidak dapat menghapus mobil utama. Silakan ubah mobil utama terlebih dahulu.'),
+            content: Text('Tidak dapat menghapus mobil utama.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -191,10 +179,7 @@ class CarDetailPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

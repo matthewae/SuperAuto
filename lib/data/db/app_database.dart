@@ -27,21 +27,22 @@ class AppDatabase {
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
-    CREATE TABLE IF NOT EXISTS cars (
-    id TEXT PRIMARY KEY,
-    brand TEXT NOT NULL,
-    model TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    plateNumber TEXT NOT NULL,
-    vin TEXT NOT NULL,
-    engineNumber TEXT NOT NULL,
-    initialKm INTEGER NOT NULL,
-    userId INTEGER NOT NULL,
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL,
-    FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
-  )
-''');
+     CREATE TABLE IF NOT EXISTS cars (
+  id TEXT PRIMARY KEY,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  plateNumber TEXT NOT NULL,
+  vin TEXT NOT NULL,
+  engineNumber TEXT NOT NULL,
+  initialKm INTEGER NOT NULL,
+  userId INTEGER NOT NULL,
+  isMain INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT,
+  updatedAt TEXT,
+  FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+)
+    ''');
 
     await db.execute('''
   CREATE TABLE IF NOT EXISTS users (

@@ -10,6 +10,7 @@ class Car {
   final int userId;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isMain;
 
   Car({
     required this.id,
@@ -21,6 +22,7 @@ class Car {
     required this.engineNumber,
     required this.initialKm,
     required this.userId,
+    required this.isMain,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -36,7 +38,8 @@ class Car {
       'vin': vin,
       'engineNumber': engineNumber,
       'initialKm': initialKm,
-      'userId': userId,  // This will be stored as INTEGER in SQLite
+      'userId': userId,
+      'isMain': isMain ? 1 : 0,  // Store as INTEGER (1 for true, 0 for false)
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -63,7 +66,8 @@ class Car {
       vin: map['vin'] as String,
       engineNumber: map['engineNumber'] as String,
       initialKm: map['initialKm'] as int,
-      userId: parseUserId(map['userId']),  // Use the safe parser
+      userId: parseUserId(map['userId']),
+      isMain: (map['isMain'] as int? ?? 0) == 1,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : null,
@@ -83,6 +87,7 @@ class Car {
     String? engineNumber,
     int? initialKm,
     int? userId,
+    bool? isMain,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -96,6 +101,7 @@ class Car {
       engineNumber: engineNumber ?? this.engineNumber,
       initialKm: initialKm ?? this.initialKm,
       userId: userId ?? this.userId,
+      isMain: isMain ?? this.isMain,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

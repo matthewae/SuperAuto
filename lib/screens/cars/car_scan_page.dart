@@ -16,6 +16,7 @@ class CarScanPage extends ConsumerStatefulWidget {
 class _CarScanPageState extends ConsumerState<CarScanPage> {
   final _uuid = const Uuid();
   bool _added = false;
+  bool _isLoading = false;
 
   Future<bool> _waitForAuthInitialization() async {
     final authNotifier = ref.read(authProvider.notifier);
@@ -31,35 +32,21 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
 
   Future<void> _addFromMap(Map<String, dynamic> data) async {
     try {
-      // Wait for auth to initialize
+      setState(() => _isLoading = true);
+
       final isInitialized = await _waitForAuthInitialization();
       if (!isInitialized) {
         throw Exception('Gagal memuat data pengguna. Silakan coba lagi.');
       }
 
-      // Get the current auth state
-      final authState = ref.read(authProvider);
-      final currentUser = authState.when(
-        data: (user) => user,
-        loading: () {
-          print('Auth state is still loading...');
-          return null;
-        },
-        error: (error, stack) {
-          print('Error getting auth state: $error');
-          return null;
-        },
-      );
-
+      final currentUser = ref.read(authProvider).value;
       if (currentUser == null) {
         throw Exception('Anda harus login terlebih dahulu untuk menambahkan mobil.');
       }
 
-      print('Adding car for user: ${currentUser.idString}');
-
       final car = Car(
         id: _uuid.v4(),
-        userId: currentUser.id!,  // Make sure this is the correct user ID
+        userId: currentUser.id!,
         brand: data['brand'] ?? 'Unknown',
         model: data['model'] ?? 'Unknown',
         year: (data['year'] ?? 0) is int ? data['year'] : int.tryParse('${data['year']}') ?? 0,
@@ -67,27 +54,42 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
         vin: data['vin'] ?? 'N/A',
         engineNumber: data['engine'] ?? 'N/A',
         initialKm: (data['km'] ?? 0) is int ? data['km'] : int.tryParse('${data['km']}') ?? 0,
+        isMain: false,
       );
 
       await ref.read(carsProvider.notifier).add(car);
 
-      final currentMain = ref.read(mainCarIdProvider);
-      if (currentMain.isEmpty) {
-        await ref.read(mainCarIdProvider.notifier).setMainCarId(currentUser.idString, car.id);
+      // Check if this is the first car being added
+      final userCars = ref.read(carsProvider);
+      final hasMainCar = userCars.any((c) => c.isMain);
+      if (!hasMainCar) {
+        await ref.read(carDaoProvider).updateMainCarStatus(car.id, true);
+        ref.invalidate(carsProvider);
       }
 
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mobil berhasil ditambahkan')),
+      );
+
+      // Optionally navigate back or reset the form
       if (mounted) {
-        setState(() => _added = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mobil berhasil ditambahkan')),
-        );
+        Navigator.of(context).pop(true); // Return success
       }
     } catch (e) {
-      print('Error in _addFromMap: $e');
+      debugPrint('Error in _addFromMap: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menambahkan mobil: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menambahkan mobil: ${e.toString()}')),
-        );
+        setState(() => _isLoading = false);
       }
     }
   }

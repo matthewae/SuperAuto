@@ -10,8 +10,6 @@ class CarsListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cars = ref.watch(carsProvider);
-    // Gunakan provider asli
-    final mainCarId = ref.watch(mainCarIdProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Mobil')),
@@ -23,14 +21,12 @@ class CarsListPage extends ConsumerWidget {
         itemCount: cars.length,
         itemBuilder: (context, index) {
           final car = cars[index];
-          // Cek apakah ini mobil utama
-          final isMain = car.id == mainCarId;
 
           return ListTile(
             leading: const Icon(Icons.directions_car),
             title: Text('${car.brand} ${car.model} (${car.year})'),
             subtitle: Text('${car.plateNumber} • KM awal: ${car.initialKm}'),
-            trailing: isMain
+            trailing: car.isMain
                 ? const Icon(Icons.star, color: Colors.orange) // Tampilkan bintang jika utama
                 : null, // Sembunyikan jika bukan utama
             onTap: () => context.push('/cars/${car.id}'),

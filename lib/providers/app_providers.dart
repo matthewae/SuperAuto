@@ -159,10 +159,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
 // Cars
 final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) {
-  return CarsNotifier(
-    ref.watch(carDaoProvider),
-    ref,
-  );
+  final dao = ref.watch(carDaoProvider);
+  return CarsNotifier(dao, ref);
 });
 
 class CarsNotifier extends StateNotifier<List<Car>> {
@@ -170,16 +168,10 @@ class CarsNotifier extends StateNotifier<List<Car>> {
   final Ref _ref;
 
   CarsNotifier(this._dao, this._ref) : super(const []) {
-    _checkSchemaAndLoadCars();
     _loadCars();
     _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
       _loadCars();
     });
-  }
-
-  Future<void> _checkSchemaAndLoadCars() async {
-    await _dao.checkTableSchema();
-    await _loadCars();
   }
 
   Future<void> _loadCars() async {
@@ -189,11 +181,11 @@ class CarsNotifier extends StateNotifier<List<Car>> {
     if (user?.id != null) {
       try {
         print('Getting cars for user ID: ${user!.id}');
-        final cars = await _dao.getByUserId(user.idString);
-        print('Successfully loaded ${cars.length} cars for user ${user.id}');
+        final cars = await _dao.getByUserId(user!.idString);
+        print('Successfully loaded ${cars.length} cars for user ${user!.id}');
         state = cars;
-      } catch (e, stack) {
-        print('Error loading cars: $e\n$stack');
+      } catch (e) {
+        print('Error loading cars: $e');
         state = [];
       }
     } else {
@@ -474,105 +466,105 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 // Loyalty
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);
 
-final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
-  final notifier = MainCarNotifier(ref: ref);
+// final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
+//   final notifier = MainCarNotifier(ref: ref);
+//
+//   // Dengarkan perubahan auth
+//   ref.listen<AsyncValue<User?>>(authProvider, (_, next) {
+//     final user = next.value;
+//     if (user != null) {
+//       notifier._updateCurrentUser(user);
+//     }
+//   });
+//
+//   return notifier;
+// });
 
-  // Dengarkan perubahan auth
-  ref.listen<AsyncValue<User?>>(authProvider, (_, next) {
-    final user = next.value;
-    if (user != null) {
-      notifier._updateCurrentUser(user);
-    }
-  });
-
-  return notifier;
-});
-
-class MainCarNotifier extends StateNotifier<String> {
-  MainCarNotifier({required this.ref}) : super('') {
-    _init();
-  }
-
-  final Ref ref;
-  String? _currentUserId;
-  SharedPreferences? _prefs;
-  bool _isInitialized = false;
-
-  Future<void> _init() async {
-    if (_isInitialized) return;
-    try {
-      _prefs = await SharedPreferences.getInstance();
-      final currentUser = ref.read(authProvider).value;
-      if (currentUser != null) {
-        _currentUserId = currentUser.idString;
-        await _loadMainCarId();
-      }
-      _isInitialized = true;
-    } catch (e) {
-      print('Error initializing MainCarNotifier: $e');
-      _isInitialized = true;
-    }
-  }
-
-  Future<void> _updateCurrentUser(User? user) async {
-    final newUserId = user?.idString;
-    if (newUserId != _currentUserId) {
-      _currentUserId = newUserId;
-      if (_currentUserId != null) {
-        await _loadMainCarId();
-      } else {
-        state = ''; // Pengguna logout, hapus state
-      }
-    }
-  }
-
-  Future<void> _loadMainCarId() async {
-    if (_currentUserId == null || _prefs == null) {
-      state = '';
-      return;
-    }
-
-    try {
-      // Key tetap 'main_car_[userId]'
-      final mainCarId = _prefs!.getString('main_car_$_currentUserId');
-      if (mainCarId != null && mainCarId.isNotEmpty) {
-        state = mainCarId;
-      } else {
-        state = '';
-      }
-    } catch (e) {
-      print('Error loading main car ID: $e');
-      state = '';
-    }
-  }
-
-  // INI ADALAH FUNGSI YANG SUDAH DIPERBAIKI
-  Future<void> setMainCarId(String userId, String carId) async {
-    if (_prefs == null) return;
-
-    try {
-      // HANYA HAPUS MOBIL UTAMA LAMA UNTUK PENGGUNA YANG SAMA (userId)
-      // Ini mencegah bug di mana mobil utama user lain terhapus.
-      final oldMainCarId = _prefs!.getString('main_car_$userId');
-      if (oldMainCarId != null) {
-        print('Menghapus mobil utama lama untuk user $userId: $oldMainCarId');
-        await _prefs!.remove('main_car_$userId');
-      }
-
-      // Tetapkan mobil utama baru untuk pengguna ini
-      await _prefs!.setString('main_car_$userId', carId);
-      print('Menetapkan mobil utama baru untuk user $userId: $carId');
-
-      // Perbarui state jika ini untuk pengguna saat ini
-      if (userId == _currentUserId) {
-        print('Memperbarui state untuk pengguna saat ini ($userId) dengan mobil utama: $carId');
-        state = carId;
-      }
-    } catch (e) {
-      print('Error setting main car: $e');
-      rethrow;
-    }
-  }
-}
-
+// class MainCarNotifier extends StateNotifier<String> {
+//   MainCarNotifier({required this.ref}) : super('') {
+//     _init();
+//   }
+//
+//   final Ref ref;
+//   String? _currentUserId;
+//   SharedPreferences? _prefs;
+//   bool _isInitialized = false;
+//
+//   Future<void> _init() async {
+//     if (_isInitialized) return;
+//     try {
+//       _prefs = await SharedPreferences.getInstance();
+//       final currentUser = ref.read(authProvider).value;
+//       if (currentUser != null) {
+//         _currentUserId = currentUser.idString;
+//         await _loadMainCarId();
+//       }
+//       _isInitialized = true;
+//     } catch (e) {
+//       print('Error initializing MainCarNotifier: $e');
+//       _isInitialized = true;
+//     }
+//   }
+//
+//   Future<void> _updateCurrentUser(User? user) async {
+//     final newUserId = user?.idString;
+//     if (newUserId != _currentUserId) {
+//       _currentUserId = newUserId;
+//       if (_currentUserId != null) {
+//         await _loadMainCarId();
+//       } else {
+//         state = ''; // Pengguna logout, hapus state
+//       }
+//     }
+//   }
+//
+//   Future<void> _loadMainCarId() async {
+//     if (_currentUserId == null || _prefs == null) {
+//       state = '';
+//       return;
+//     }
+//
+//     try {
+//       // Key tetap 'main_car_[userId]'
+//       final mainCarId = _prefs!.getString('main_car_$_currentUserId');
+//       if (mainCarId != null && mainCarId.isNotEmpty) {
+//         state = mainCarId;
+//       } else {
+//         state = '';
+//       }
+//     } catch (e) {
+//       print('Error loading main car ID: $e');
+//       state = '';
+//     }
+//   }
+//
+//   // INI ADALAH FUNGSI YANG SUDAH DIPERBAIKI
+//   Future<void> setMainCarId(String userId, String carId) async {
+//     if (_prefs == null) return;
+//
+//     try {
+//       // HANYA HAPUS MOBIL UTAMA LAMA UNTUK PENGGUNA YANG SAMA (userId)
+//       // Ini mencegah bug di mana mobil utama user lain terhapus.
+//       final oldMainCarId = _prefs!.getString('main_car_$userId');
+//       if (oldMainCarId != null) {
+//         print('Menghapus mobil utama lama untuk user $userId: $oldMainCarId');
+//         await _prefs!.remove('main_car_$userId');
+//       }
+//
+//       // Tetapkan mobil utama baru untuk pengguna ini
+//       await _prefs!.setString('main_car_$userId', carId);
+//       print('Menetapkan mobil utama baru untuk user $userId: $carId');
+//
+//       // Perbarui state jika ini untuk pengguna saat ini
+//       if (userId == _currentUserId) {
+//         print('Memperbarui state untuk pengguna saat ini ($userId) dengan mobil utama: $carId');
+//         state = carId;
+//       }
+//     } catch (e) {
+//       print('Error setting main car: $e');
+//       rethrow;
+//     }
+//   }
+// }
+//
 

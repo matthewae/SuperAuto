@@ -85,22 +85,18 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         throw Exception('Anda belum menambahkan mobil. Silakan tambahkan mobil terlebih dahulu.');
       }
 
-      // Get main car ID and find the car
-      final mainCarId = ref.read(mainCarIdProvider);
-      if (mainCarId.isEmpty) {
-        // If no main car is set, use the first car if available
-        if (userCars.isNotEmpty) {
-          // Update main car to the first car
-          await ref.read(mainCarIdProvider.notifier).setMainCarId(user.idString,userCars.first.id);
-        } else {
-          throw Exception('Silakan pilih mobil utama terlebih dahulu');
-        }
-      }
-
-      // Verify the car belongs to the user
-      final selectedCar = userCars.firstWhere(
-            (car) => car.id == mainCarId,
-        orElse: () => throw Exception('Mobil tidak valid atau tidak ditemukan. Silakan pilih mobil lain.'),
+      // Find the main car
+      final mainCar = userCars.firstWhere(
+        (car) => car.isMain,
+        orElse: () {
+          // If no main car is set, use the first car
+          if (userCars.isNotEmpty) {
+            // Set the first car as main
+            ref.read(carDaoProvider).updateMainCarStatus(userCars.first.id, true);
+            return userCars.first;
+          }
+          throw Exception('Tidak ada mobil yang tersedia');
+        },
       );
 
       final scheduled = DateTime(
@@ -110,7 +106,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       final booking = ServiceBooking(
         id: const Uuid().v4(),
         userId: user.idString,
-        carId: selectedCar.id,  // Use the verified car ID
+        carId: mainCar.id,  // Use the verified car ID
         serviceType: _type.toString().split('.').last,
         scheduledAt: scheduled,
         estimatedCost: _estimated,
@@ -186,9 +182,11 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
   @override
   Widget build(BuildContext context) {
+
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
-    final mainCarId = ref.watch(mainCarIdProvider);
+    final userCars = ref.watch(carsProvider);
+    final mainCar = userCars.firstWhereOrNull((car) => car.isMain);
 
     return Scaffold(
       appBar: AppBar(
@@ -250,7 +248,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               const SizedBox(height: 32),
 
               // Submit Button
-              _buildSubmitButton(authState, mainCarId),
+              _buildSubmitButton(authState, mainCar),
 
               const SizedBox(height: 24),
             ],
@@ -485,82 +483,37 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       ),
     );
   }
-
-  Widget _buildSubmitButton(AsyncValue<User?> authState, String mainCarId) {
+  Widget _buildSubmitButton(AsyncValue<User?> authState, Car? mainCar) {
     return SizedBox(
       width: double.infinity,
       height: 50,
-      child: authState.when(
-        data: (user) {
-          if (user == null) {
-            return _buildAuthRequiredButton('Silakan login terlebih dahulu');
-          }
-
-          return FutureBuilder<List<Car>>(
-            future: ref.read(carDaoProvider).getByUserId(user.idString),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return _buildAuthRequiredButton('Gagal memuat data mobil');
-              }
-
-              final userCars = snapshot.data ?? [];
-              if (userCars.isEmpty) {
-                return ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pushNamed('/cars');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Tambah Mobil Terlebih Dahulu',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                );
-              }
-
-              if (mainCarId.isEmpty) {
-                return _buildAuthRequiredButton('Pilih mobil utama terlebih dahulu');
-              }
-
-              return ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitBooking,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Text(
-                  'Buat Janji Servis',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _buildAuthRequiredButton('Error: $error'),
+      child: ElevatedButton(
+        onPressed: (authState.isLoading || mainCar == null || _isSubmitting)
+            ? null
+            : _submitBooking,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).primaryColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: _isSubmitting
+            ? const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : const Text(
+          'Buat Booking',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }
@@ -585,5 +538,12 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         ),
       ),
     );
+  }
+}extension IterableExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 }
