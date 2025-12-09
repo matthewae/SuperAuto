@@ -30,15 +30,43 @@ class Product {
     'compatibleModels': jsonEncode(compatibleModels),
   };
 
-  factory Product.fromMap(Map<String, dynamic> json) => Product(
-    id: json['id'],
-    name: json['name'],
-    category: ProductCategoryExt.fromString(json['category']),
-    description: json['description'],
-    price: json['price'],
-    imageUrl: json['imageUrl'],
-    compatibleModels: json['compatibleModels'] == null
-        ? []
-        : List<String>.from(jsonDecode(json['compatibleModels'])),
-  );
+  // In lib/models/product.dart
+  factory Product.fromMap(Map<String, dynamic> json) {
+    try {
+      return Product(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        category: ProductCategoryExt.fromString(json['category'] as String),
+        description: json['description'] as String,
+        price: (json['price'] is int) ? (json['price'] as int).toDouble() : (json['price'] as num).toDouble(),
+        imageUrl: json['imageUrl'] as String?,
+        compatibleModels: json['compatibleModels'] == null
+            ? []
+            : List<String>.from(jsonDecode(json['compatibleModels'] as String)),
+      );
+    } catch (e) {
+      print('Error in Product.fromMap: $e');
+      print('Problematic JSON: $json');
+      rethrow;
+    }
+  }
+  Product copyWith({
+    String? id,
+    String? name,
+    ProductCategory? category,
+    String? description,
+    double? price,
+    String? imageUrl,
+    List<String>? compatibleModels,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      imageUrl: imageUrl ?? this.imageUrl,
+      compatibleModels: compatibleModels ?? this.compatibleModels,
+    );
+  }
 }

@@ -50,6 +50,9 @@ dependencies:
   flutter_neumorphic_plus: ^3.5.0
   flutter_svg: ^2.0.10+1 # Added for SVG support
   shared_preferences: ^2.2.3
+  device_info_plus: ^12.3.0
+  android_alarm_manager_plus: ^5.0.0
+  permission_handler: ^12.0.1
   carousel_slider: ^5.1.1
 
 

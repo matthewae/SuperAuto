@@ -13,8 +13,8 @@ class ServiceBookingCard extends StatelessWidget {
       onTap: onTap,
       child: GFCard(
         title: GFListTile(
-          titleText: '${booking.workshop} • ${booking.type.name}',
-          subTitleText: 'Status: ${booking.status.name} • Estimasi: Rp ${booking.estimatedCost.toStringAsFixed(0)}',
+          titleText: '${booking.workshop ?? 'Workshop'} • ${booking.serviceType}',
+          subTitleText: 'Status: ${booking.status} • Estimasi: Rp ${booking.estimatedCost.toStringAsFixed(0)}',
         ),
         content: Text(
           'Jadwal: ${booking.scheduledAt.toLocal().toString().split(' ').first}',

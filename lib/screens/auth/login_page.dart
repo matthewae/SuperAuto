@@ -127,24 +127,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     GFButton(
                       color: Theme.of(context).colorScheme.primary,
                       fullWidthButton: true,
+                      // In login_page.dart, update the onPressed handler:
                       onPressed: () async {
-                        final auth = ref.read(authServiceProvider);
-                        final user = await auth.login(emailController.text, passwordController.text);
+                        final email = emailController.text;
+                        final password = passwordController.text;
 
-                        if (user == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Email atau password salah')),
-                          );
-                          return;
-                        }
-                        ref.read(userStateProvider.notifier).state = user;
-                        await NotificationService().init();
-                        seedDummyData(ref);
-                        if (context.mounted) {
-                          if (user.role == 'admin') {
-                            context.go('/admin');
+                        print('Starting login process for: $email');
+
+                        try {
+                          final user = await ref.read(authProvider.notifier).login(email, password);
+                          print('Login result - User: ${user?.email}');
+
+                          if (user != null) {
+                            print('Login successful, initializing notifications...');
+                            await NotificationService().init();
+                            print('Notifications initialized, seeding dummy data...');
+                            seedDummyData(ref);
+
+                            if (context.mounted) {
+                              print('Navigating to home page...');
+                              if (user.role == 'admin') {
+                                print('Admin user detected, going to admin panel');
+                                context.go('/admin');
+                              } else {
+                                print('Regular user, going to splash screen');
+                                context.go('/home');
+                              }
+                            } else {
+                              print('Context not mounted after login');
+                            }
                           } else {
-                            context.go('/splash');
+                            print('Login failed: Invalid credentials');
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Email atau password salah')),
+                              );
+                            }
+                          }
+                        } catch (e, stack) {
+                          print('Login error: $e\n$stack');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Login gagal: $e')),
+                            );
                           }
                         }
                       },

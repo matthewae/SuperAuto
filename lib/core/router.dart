@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:superauto/screens/booking/booking_detail_page.dart';
 import '../screens/admin/admin_dashboard.dart';
 import '../screens/admin/admin_product.dart';
 import '../screens/auth/login_page.dart';
@@ -24,6 +25,8 @@ import '../screens/history/order_history_page.dart';
 import '../screens/profile/profile_page.dart';
 import '../screens/profile/edit_profile_page.dart';
 import '../widgets/main_shell.dart';
+import '../screens/booking/bookings_page.dart';
+import '../screens/cars/car_edit_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -88,9 +91,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CarDetailPage(carId: state.pathParameters['id']!),
       ),
       GoRoute(
+        path: '/cars/:id/edit',
+        name: 'car-edit',  // This is the name you're using in pushNamed
+        builder: (context, state) {
+          final carId = state.pathParameters['id']!;
+          return CarEditPage(carId: carId);
+        },
+      ),
+      GoRoute(
         path: '/booking',
         name: 'booking',
         builder: (context, state) => const BookingPage(),
+      ),
+      GoRoute(
+        path: '/bookings',
+        name: 'bookings',
+        builder: (context, state) => const BookingsPage(),
+      ),
+      GoRoute(
+        path: '/booking-detail/:id',
+        name: 'booking-detail',
+        builder: (context, state) {
+          final bookingId = state.pathParameters['id']!;
+          return BookingDetailPage(bookingId: bookingId);
+        },
       ),
       GoRoute(
         path: '/tracking',

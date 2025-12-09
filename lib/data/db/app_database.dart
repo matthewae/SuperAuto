@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class AppDatabase {
+
   static final AppDatabase instance = AppDatabase._init();
   static Database? _db;
 
@@ -26,20 +27,25 @@ class AppDatabase {
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE cars (
-      id TEXT PRIMARY KEY,
-      brand TEXT,
-      model TEXT,
-      year INTEGER,
-      plateNumber TEXT,
-      vin TEXT,
-      engineNumber TEXT,
-      initialKm INTEGER
-    );
+     CREATE TABLE IF NOT EXISTS cars (
+  id TEXT PRIMARY KEY,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  plateNumber TEXT NOT NULL,
+  vin TEXT NOT NULL,
+  engineNumber TEXT NOT NULL,
+  initialKm INTEGER NOT NULL,
+  userId INTEGER NOT NULL,
+  isMain INTEGER NOT NULL DEFAULT 0,
+  createdAt TEXT,
+  updatedAt TEXT,
+  FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+)
     ''');
 
     await db.execute('''
-  CREATE TABLE users (
+  CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -50,7 +56,7 @@ class AppDatabase {
 
 
     await db.execute('''
-      CREATE TABLE products (
+      CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       name TEXT,
       category TEXT,
@@ -62,7 +68,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE orders (
+      CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         userId TEXT,
         productId TEXT,
@@ -71,16 +77,31 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE service_bookings (
-        id TEXT PRIMARY KEY,
-        carId TEXT,
-        date TEXT,
-        description TEXT
-      );
+  CREATE TABLE IF NOT EXISTS service_bookings (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    carId TEXT NOT NULL,
+    serviceType TEXT NOT NULL,
+    scheduledAt TEXT NOT NULL,
+    estimatedCost REAL NOT NULL,
+    status TEXT NOT NULL,
+    workshop TEXT,
+    notes TEXT,
+    serviceDetails TEXT,
+    mechanicName TEXT,
+    isPickupService INTEGER NOT NULL DEFAULT 0,
+    serviceLocation TEXT,
+    adminNotes TEXT,
+    statusHistory TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (carId) REFERENCES cars(id) ON DELETE CASCADE
+      )
     ''');
 
     await db.execute('''
-      CREATE TABLE promo (
+      CREATE TABLE IF NOT EXISTS promo (
         id TEXT PRIMARY KEY,
         title TEXT,
         description TEXT,
@@ -89,7 +110,7 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE cart (
+      CREATE TABLE IF NOT EXISTS cart (
         id TEXT PRIMARY KEY,
         productId TEXT,
         qty INTEGER
