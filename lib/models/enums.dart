@@ -1,4 +1,4 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 enum ServiceStatus {
   booking,
@@ -17,6 +17,13 @@ extension ServiceStatusExt on ServiceStatus {
         .firstWhere((e) => e.toString().split('.').last == val);
   }
 }
+
+enum BookingFilter {
+  all,
+  completed,
+  cancelled,
+}
+
 enum BookingStatus {
   pending('Menunggu Konfirmasi'),
   confirmed('Dikonfirmasi'),

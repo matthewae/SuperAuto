@@ -65,8 +65,7 @@ class OrderHistoryPage extends ConsumerWidget {
                 }
                 return null;
               },
-              childCount: orders.length + bookings.length,
-            ),
+            childCount: bookings.length + orders.length,            ),
           ),
         ],
       ),

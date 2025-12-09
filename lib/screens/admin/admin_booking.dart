@@ -311,8 +311,8 @@ class AdminBookingPage extends ConsumerWidget {
     final validTransitions = {
       'pending': ['confirmed', 'cancelled'],
       'confirmed': ['inProgress', 'cancelled'],
-      'inProgress': ['waitingForParts', 'completed'],
-      'waitingForParts': ['inProgress', 'completed'],
+      'inProgress': ['waitingForParts', 'completed','cancelled'],
+      'waitingForParts': ['inProgress', 'completed','cancelled'],
       'completed': [], // Cannot change from completed
       'cancelled': [], // Cannot change from cancelled
     };

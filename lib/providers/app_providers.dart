@@ -20,7 +20,6 @@ import '../data/dao/car_dao.dart';
 import '../data/dao/user_dao.dart';
 import '../data/dao/service_booking_dao.dart';
 import '../data/db/app_database.dart';
-import '../services/history_service.dart';
 
 
 const _uuid = Uuid();
@@ -417,6 +416,50 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
   return BookingsNotifier(ServiceBookingDao(ref.watch(databaseProvider)));
 });
+
+//history booking
+final historyFilterProvider = StateNotifierProvider<HistoryFilterNotifier, BookingFilter>((ref) {
+  return HistoryFilterNotifier();
+});
+
+class HistoryFilterNotifier extends StateNotifier<BookingFilter> {
+  HistoryFilterNotifier() : super(BookingFilter.all);
+
+  void setFilter(BookingFilter filter) {
+    state = filter;
+  }
+}
+
+// 2. Provider yang mengambil booking berdasarkan user dan filter yang aktif
+final historyBookingsProvider = FutureProvider.autoDispose<List<ServiceBooking>>((ref) async {
+  final user = ref.watch(authProvider).valueOrNull;
+  if (user == null) {
+    return [];
+  }
+
+  final filter = ref.watch(historyFilterProvider);
+  final notifier = ref.read(bookingsProvider.notifier);
+
+  try {
+    final allUserBookings = await notifier.getByUserId(user.idString);
+
+    switch (filter) {
+      case BookingFilter.completed:
+        return allUserBookings.where((b) => b.status == 'completed').toList();
+      case BookingFilter.cancelled:
+        return allUserBookings.where((b) => b.status == 'cancelled').toList();
+      case BookingFilter.all:
+      default:
+        return allUserBookings
+            .where((b) => b.status == 'completed' || b.status == 'cancelled')
+            .toList();
+    }
+  } catch (e) {
+    print('Error fetching or filtering bookings: $e');
+    return [];
+  }
+});
+
 
 class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
 
