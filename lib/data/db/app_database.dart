@@ -93,10 +93,30 @@ class AppDatabase {
     serviceLocation TEXT,
     adminNotes TEXT,
     statusHistory TEXT,
+    jobs TEXT,
+    parts TEXT,
+    km INTEGER,
+    totalCost REAL,
     createdAt TEXT NOT NULL,
     updatedAt TEXT,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (carId) REFERENCES cars(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS service_history (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        carId TEXT NOT NULL,
+        date TEXT NOT NULL,
+        km INTEGER NOT NULL,
+        jobs TEXT NOT NULL,
+        parts TEXT NOT NULL,
+        totalCost REAL NOT NULL,
+        serviceType TEXT,
+        notes TEXT,
+        createdAt TEXT NOT NULL
       )
     ''');
 

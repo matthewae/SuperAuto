@@ -7,6 +7,7 @@ import '../../providers/app_providers.dart';
 import '../../models/enums.dart';
 import '../../data/dao/user_dao.dart';
 import '../../data/dao/car_dao.dart';
+import '../../widgets/complete_service_dialog.dart';
 
 class AdminBookingPage extends ConsumerWidget {
   const AdminBookingPage({super.key});
@@ -48,8 +49,39 @@ class AdminBookingPage extends ConsumerWidget {
     final bookings = ref.watch(bookingsProvider);
     final notifier = ref.read(bookingsProvider.notifier);
 
-    void _updateStatus(String id, String status) {
-      _showStatusUpdateDialog(context, notifier, id, status);
+    void _updateStatus(String id, String status) async {
+      final booking = ref.read(bookingsProvider.notifier).state.firstWhere(
+            (b) => b.id == id,
+        orElse: () => throw Exception('Booking not found'),
+      );
+
+      if (status == 'completed') {
+        // Show the completion dialog
+        await showDialog(
+          context: context,
+          builder: (context) => CompleteServiceDialog(
+            booking: booking,
+            onComplete: (id, jobs, parts, km, totalCost) async {
+              await ref.read(bookingsProvider.notifier).updateServiceDetails(
+                id: id,
+                jobs: jobs,
+                parts: parts,
+                km: km,
+                totalCost: totalCost,
+                notes: 'Servis selesai',
+              );
+              await ref.read(bookingsProvider.notifier).updateStatus(
+                id,
+                'completed',
+                notes: 'Servis selesai',
+              );
+            },
+          ),
+        );
+      } else {
+        // For other statuses, show the status update dialog
+        _showStatusUpdateDialog(context, notifier, id, status);
+      }
     }
 
     return Scaffold(
@@ -275,40 +307,64 @@ class AdminBookingPage extends ConsumerWidget {
       return status;
     }
   }
+  bool _isValidStatusTransition(String currentStatus, String newStatus) {
+    final validTransitions = {
+      'pending': ['confirmed', 'cancelled'],
+      'confirmed': ['inProgress', 'cancelled'],
+      'inProgress': ['waitingForParts', 'completed'],
+      'waitingForParts': ['inProgress', 'completed'],
+      'completed': [], // Cannot change from completed
+      'cancelled': [], // Cannot change from cancelled
+    };
 
+    return validTransitions[currentStatus]?.contains(newStatus) ?? false;
+  }
   void _showStatusUpdateDialog(
-      BuildContext context,
-      BookingsNotifier notifier,
-      String bookingId,
-      String currentStatus,
-      ) {
-    final controller = TextEditingController();
-    BookingStatus currentStatusEnum;
+      BuildContext context, BookingsNotifier notifier, String id, String currentStatus) {
+    final statuses = <String, String>{
+      'pending': 'Menunggu Konfirmasi',
+      'confirmed': 'Dikonfirmasi',
+      'inProgress': 'Dalam Pengerjaan',
+      'waitingForParts': 'Menunggu Part',
+      'completed': 'Selesai',
+      'cancelled': 'Dibatalkan',
+    };
 
-    try {
-      currentStatusEnum = BookingStatus.values.firstWhere(
-            (e) =>
-        e
-            .toString()
-            .split('.')
-            .last
-            .toLowerCase() == currentStatus.toLowerCase(),
-      );
-    } catch (e) {
-      currentStatusEnum = BookingStatus.pending;
+    // Only allow valid status transitions
+    final availableStatuses = statuses.entries
+        .where((e) => _isValidStatusTransition(currentStatus, e.key) || e.key == currentStatus)
+        .toList();
+
+    String selectedStatus = currentStatus;
+    final notesController = TextEditingController();
+    final partsController = TextEditingController();
+    final kmController = TextEditingController();
+    final jobsController = TextEditingController();
+    final totalCostController = TextEditingController();
+
+    // Load existing booking data
+    final currentBooking = notifier.state.firstWhere((b) => b.id == id);
+
+    // Populate form fields with existing data
+    if (currentBooking.jobs?.isNotEmpty ?? false) {
+      jobsController.text = currentBooking.jobs!.join(', ');
     }
-
-    // Get the next possible statuses and include current status
-    final possibleStatuses = [
-      currentStatusEnum,
-      ...BookingStatus.getNextPossibleStatuses(currentStatusEnum)
-    ].toSet().toList(); // Use Set to remove duplicates
-
-    BookingStatus? selectedStatus = currentStatusEnum;
+    if (currentBooking.parts?.isNotEmpty ?? false) {
+      partsController.text = currentBooking.parts!.join(', ');
+    }
+    if (currentBooking.km != null) {
+      kmController.text = currentBooking.km.toString();
+    }
+    if (currentBooking.totalCost != null) {
+      totalCostController.text = currentBooking.totalCost.toString();
+    }
+    if (currentBooking.adminNotes != null) {
+      notesController.text = currentBooking.adminNotes!;
+    }
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -317,59 +373,120 @@ class AdminBookingPage extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Pilih status baru:'),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<BookingStatus>(
+                    DropdownButtonFormField<String>(
                       value: selectedStatus,
-                      items: possibleStatuses.map((status) {
-                        return DropdownMenuItem<BookingStatus>(
-                          value: status,
-                          child: Text(status.displayName),
+                      items: availableStatuses.map((entry) {
+                        return DropdownMenuItem<String>(
+                          value: entry.key,
+                          child: Text(entry.value),
                         );
                       }).toList(),
-                      onChanged: (status) {
-                        setState(() {
-                          selectedStatus = status;
-                        });
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedStatus = value;
+                          });
+                        }
                       },
                       decoration: const InputDecoration(
+                        labelText: 'Status',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: controller,
+                      controller: notesController,
                       decoration: const InputDecoration(
-                        labelText: 'Catatan (Opsional)',
+                        labelText: 'Catatan Admin',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
                       ),
                       maxLines: 3,
                     ),
+                    if (selectedStatus == 'inProgress' ||
+                        selectedStatus == 'completed' ||
+                        selectedStatus == 'waitingForParts') ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: jobsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Pekerjaan (pisahkan dengan koma)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: partsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Suku Cadang (pisahkan dengan koma)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: kmController,
+                        decoration: const InputDecoration(
+                          labelText: 'Kilometer',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: totalCostController,
+                        decoration: const InputDecoration(
+                          labelText: 'Total Biaya',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Batal'),
                 ),
                 ElevatedButton(
-                  onPressed: selectedStatus == null
-                      ? null
-                      : () {
-                    notifier.updateStatus(
-                      bookingId,
-                      selectedStatus!
-                          .toString()
-                          .split('.')
-                          .last,
-                      notes: controller.text,
-                    );
-                    Navigator.pop(context);
+                  onPressed: () async {
+                    try {
+                      final jobs = jobsController.text
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      final parts = partsController.text
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      final km = int.tryParse(kmController.text);
+                      final totalCost = double.tryParse(totalCostController.text);
+
+                      await notifier.updateStatusAndDetails(
+                        id: id,
+                        status: selectedStatus,
+                        jobs: jobs,
+                        parts: parts,
+                        km: km,
+                        totalCost: totalCost,
+                        adminNotes: notesController.text,
+                      );
+
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Status dan detail servis berhasil diperbarui')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
+                      }
+                    }
                   },
                   child: const Text('Simpan'),
                 ),

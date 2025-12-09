@@ -39,6 +39,7 @@ class BookingDetailPage extends ConsumerWidget {
     try {
       final booking = bookings.firstWhere((b) => b.id == bookingId);
       print('✅ Found booking: ${booking.id} - Status: ${booking.status}');
+      print('📜 Status History: ${booking.statusHistory}');
       return _buildBookingDetails(booking, context, ref);
     } catch (e) {
       print('❌ Booking not found: $bookingId');
@@ -67,7 +68,7 @@ class BookingDetailPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatusCard(booking, context),
+              _buildStatusTimeline(booking, context),
               const SizedBox(height: 16),
               _buildSectionTitle(context, 'Detail Servis'),
               _buildDetailCard(
@@ -103,7 +104,7 @@ class BookingDetailPage extends ConsumerWidget {
               _buildDetailCard(
                 icon: Icons.attach_money,
                 title: 'Perkiraan Biaya',
-                value: 'Rp${booking.estimatedCost.toStringAsFixed(0)}',
+                value: 'Rp${booking.estimatedCost?.toStringAsFixed(0) ?? '0'}',
               ),
               if (booking.isPickupService)
                 _buildDetailCard(
@@ -122,12 +123,10 @@ class BookingDetailPage extends ConsumerWidget {
                   icon: Icons.admin_panel_settings,
                   title: 'Catatan Admin',
                   value: booking.adminNotes!,
-                  isAdminNote: true,
                 ),
-              _buildTimeline(booking, context),
-              const SizedBox(height: 20),
-              if (_shouldShowActionButtons(booking))
-                _buildActionButtons(booking, context, ref),
+              const SizedBox(height: 24),
+              _buildActionButtons(booking, context, ref),
+              const SizedBox(height: 24),
             ],
           ),
         );
@@ -135,80 +134,227 @@ class BookingDetailPage extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, dynamic>> _loadBookingDetails(
-      ServiceBooking booking, WidgetRef ref) async {
-    final car = await ref.read(carDaoProvider).getById(booking.carId);
-    return {'car': car};
-  }
+  Widget _buildStatusTimeline(ServiceBooking booking,context) {
+    // Parse status history dari booking
+    final Map<String, DateTime> statusTimestamps = {};
 
-  Widget _buildStatusCard(ServiceBooking booking, BuildContext context) {
-    Color statusColor;
-    switch (booking.status) {
-      case 'completed':
-        statusColor = Colors.green;
-        break;
-      case 'cancelled':
-        statusColor = Colors.red;
-        break;
-      case 'in_progress':
-        statusColor = Colors.orange;
-        break;
-      case 'confirmed':
-        statusColor = Colors.blue;
-        break;
-      default:
-        statusColor = Colors.grey;
+    if (booking.statusHistory != null && booking.statusHistory!.isNotEmpty) {
+      booking.statusHistory!.forEach((key, value) {
+        try {
+          DateTime timestamp;
+          if (value is String) {
+            timestamp = DateTime.parse(value);
+          } else if (value is Map) {
+            // Jika value adalah Map dengan format {status, notes, updatedAt}
+            final updatedAt = value['updatedAt'];
+            if (updatedAt != null) {
+              timestamp = DateTime.parse(updatedAt.toString());
+            } else {
+              timestamp = DateTime.now();
+            }
+            // Override key dengan status dari value jika ada
+            final status = value['status'];
+            if (status != null) {
+              statusTimestamps[status.toString()] = timestamp;
+              return;
+            }
+          } else {
+            timestamp = DateTime.now();
+          }
+          statusTimestamps[key] = timestamp;
+        } catch (e) {
+          debugPrint('Error parsing timestamp for $key: $e');
+        }
+      });
     }
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
+    // Jika tidak ada history, gunakan createdAt untuk status awal
+    if (statusTimestamps.isEmpty) {
+      statusTimestamps['pending'] = booking.createdAt;
+    }
+
+    // Tambahkan current status jika belum ada
+    if (!statusTimestamps.containsKey(booking.status)) {
+      statusTimestamps[booking.status] = booking.updatedAt ?? DateTime.now();
+    }
+
+    // Sort berdasarkan waktu
+    final sortedEntries = statusTimestamps.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
+    print('🔍 Timeline Data:');
+    for (var entry in sortedEntries) {
+      print('   ${entry.key}: ${entry.value}');
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _getStatusIcon(booking.status),
-                  color: statusColor,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _getStatusText(booking.status),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (booking.updatedAt != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Terakhir diperbarui: ${DateFormat('d MMM yyyy, HH:mm').format(booking.updatedAt!)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              const Text(
+                'Timeline',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            if (booking.status == 'in_progress')
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: LinearProgressIndicator(),
-              ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...sortedEntries.asMap().entries.map((entry) {
+            final index = entry.key;
+            final statusEntry = entry.value;
+            final isLast = index == sortedEntries.length - 1;
+            final isCurrent = statusEntry.key == booking.status;
+
+            return _buildTimelineItem(
+              status: statusEntry.key,
+              timestamp: statusEntry.value,
+              isLast: isLast,
+              isCurrent: isCurrent,
+            );
+          }).toList(),
+        ],
       ),
     );
+  }
+
+  Widget _buildTimelineItem({
+    required String status,
+    required DateTime timestamp,
+    required bool isLast,
+    required bool isCurrent,
+  }) {
+    Color getStatusColor() {
+      if (status == 'cancelled') return Colors.red;
+      if (status == 'completed') return Colors.green;
+      if (isCurrent) return Colors.blue;
+      return Colors.grey;
+    }
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline indicator
+          SizedBox(
+            width: 40,
+            child: Column(
+              children: [
+                // Dot
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: getStatusColor(),
+                    border: Border.all(
+                      color: getStatusColor(),
+                      width: 3,
+                    ),
+                  ),
+                  child: isCurrent
+                      ? Container(
+                    margin: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                  )
+                      : null,
+                ),
+                // Connecting line
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: getStatusColor().withOpacity(0.3),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getStatusText(status),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                      color: isCurrent ? Colors.black : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    DateFormat('EEEE, d MMM yyyy • HH:mm', 'id_ID').format(timestamp),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (_getStatusDescription(status).isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _getStatusDescription(status),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getStatusDescription(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Menunggu konfirmasi dari bengkel';
+      case 'confirmed':
+        return 'Pesanan telah dikonfirmasi';
+      case 'in_progress':
+        return 'Servis sedang dalam pengerjaan';
+      case 'waiting_parts':
+        return 'Menunggu suku cadang';
+      case 'waiting_payment':
+        return 'Menunggu pembayaran';
+      case 'ready_for_pickup':
+        return 'Servis selesai, siap diambil';
+      case 'completed':
+        return 'Pesanan selesai';
+      case 'cancelled':
+        return 'Pesanan dibatalkan';
+      default:
+        return '';
+    }
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
@@ -218,7 +364,6 @@ class BookingDetailPage extends ConsumerWidget {
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.bold,
-          color: Theme.of(context).primaryColor,
         ),
       ),
     );
@@ -228,132 +373,46 @@ class BookingDetailPage extends ConsumerWidget {
     required IconData icon,
     required String title,
     required String value,
-    bool isAdminNote = false,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(icon, color: isAdminNote ? Colors.red : null),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isAdminNote ? Colors.red : null,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: Colors.grey[600]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(value, style: isAdminNote ? const TextStyle(color: Colors.red) : null),
       ),
     );
   }
 
-  Widget _buildTimeline(ServiceBooking booking, BuildContext context) {
-    final statusHistory = booking.statusHistory ?? {};
-    if (statusHistory.isEmpty) return const SizedBox.shrink();
-
-    final entries = statusHistory.entries.map((entry) {
-      return MapEntry(
-        entry.key,
-        entry.value is String ? DateTime.parse(entry.value) : DateTime.now(),
-      );
-    }).toList()
-      ..sort((a, b) => b.value.compareTo(a.value)); // Sort by date, newest first
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle(context, 'Riwayat Status'),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                for (var i = 0; i < entries.length; i++)
-                  _buildTimelineStep(
-                    context: context,
-                    status: entries[i].key,
-                    time: entries[i].value,
-                    isFirst: i == 0,
-                    isLast: i == entries.length - 1,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimelineStep({
-    required BuildContext context,
-    required String status,
-    required DateTime time,
-    bool isFirst = false,
-    bool isLast = false,
-  }) {
-    String formattedDate;
-    try {
-      formattedDate = DateFormat('EEEE, d MMMM yyyy, HH:mm', 'id_ID').format(time);
-    } catch (e) {
-      formattedDate = 'Waktu tidak valid';
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            if (!isFirst)
-              Container(
-                width: 2,
-                height: 20,
-                color: Colors.grey[300],
-              ),
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: isLast ? Theme.of(context).primaryColor : Colors.grey,
-                shape: BoxShape.circle,
-              ),
-            ),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 20,
-                color: Colors.grey[300],
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getStatusText(status),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  formattedDate,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButtons(
-      ServiceBooking booking,
-      BuildContext context,
-      WidgetRef ref
-      ) {
-    if (booking.status == 'cancelled' || booking.status == 'completed') {
-      return const SizedBox.shrink();
-    }
+      ServiceBooking booking, BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         if (booking.status == 'pending')
@@ -362,23 +421,150 @@ class BookingDetailPage extends ConsumerWidget {
               icon: const Icon(Icons.cancel),
               label: const Text('Batalkan'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.red[50],
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: () => _showCancelConfirmation(context, booking, ref),
             ),
           ),
-        if (booking.status == 'pending') const SizedBox(width: 8),
         if (booking.status == 'ready_for_pickup')
           Expanded(
             child: ElevatedButton.icon(
               icon: const Icon(Icons.check_circle),
               label: const Text('Konfirmasi Selesai'),
-              onPressed: () => _confirmCompletion(context, booking, ref),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: () => _showCompleteDialog(context, booking, ref),
             ),
           ),
       ],
     );
+  }
+
+  void _showCancelConfirmation(
+      BuildContext context, ServiceBooking booking, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Batalkan Booking'),
+        content: const Text('Apakah Anda yakin ingin membatalkan booking ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tidak'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref
+                    .read(bookingsProvider.notifier)
+                    .updateStatus(booking.id, 'cancelled');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Booking telah dibatalkan')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Gagal membatalkan booking')),
+                  );
+                }
+              }
+            },
+            child: const Text('Ya, Batalkan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCompleteDialog(
+      BuildContext context, ServiceBooking booking, WidgetRef ref) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Selesai'),
+        content: const Text('Apakah Anda sudah mengambil mobil Anda?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Belum'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref
+                    .read(bookingsProvider.notifier)
+                    .updateStatus(booking.id, 'completed');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Terima kasih telah menggunakan layanan kami!'),
+                    ),
+                  );
+                  Navigator.pop(context);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Gagal memperbarui status')),
+                  );
+                }
+              }
+            },
+            child: const Text('Sudah'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _loadBookingDetails(
+      ServiceBooking booking, WidgetRef ref) async {
+    try {
+      final cars = ref.read(carsProvider);
+      final car = cars.firstWhere(
+            (car) => car.id == booking.carId,
+        orElse: () => Car(
+          id: '',
+          brand: 'Mobil tidak ditemukan',
+          model: '',
+          year: 0,
+          plateNumber: '',
+          vin: 'N/A',
+          engineNumber: 'N/A',
+          initialKm: 0,
+          userId: 0,
+          isMain: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+      return {'car': car};
+    } catch (e) {
+      debugPrint('Error loading car details: $e');
+      return {
+        'car': Car(
+          id: '',
+          brand: 'Gagal memuat data mobil',
+          model: '',
+          year: 0,
+          plateNumber: '',
+          vin: 'N/A',
+          engineNumber: 'N/A',
+          initialKm: 0,
+          userId: 0,
+          isMain: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        )
+      };
+    }
   }
 
   String _formatServiceType(String type) {
@@ -391,29 +577,6 @@ class BookingDetailPage extends ConsumerWidget {
         return 'Darurat';
       default:
         return type;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'pending':
-        return Icons.pending_actions;
-      case 'confirmed':
-        return Icons.assignment_turned_in;
-      case 'in_progress':
-        return Icons.build;
-      case 'waiting_parts':
-        return Icons.inventory_2;
-      case 'waiting_payment':
-        return Icons.payment;
-      case 'ready_for_pickup':
-        return Icons.local_car_wash;
-      case 'completed':
-        return Icons.check_circle;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.info;
     }
   }
 
@@ -438,67 +601,5 @@ class BookingDetailPage extends ConsumerWidget {
       default:
         return status;
     }
-  }
-
-  bool _shouldShowActionButtons(ServiceBooking booking) {
-    return booking.status == 'pending' || booking.status == 'ready_for_pickup';
-  }
-
-  void _showCancelConfirmation(
-      BuildContext context, ServiceBooking booking, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Batalkan Booking?'),
-        content: const Text('Apakah Anda yakin ingin membatalkan booking ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tidak'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref
-                  .read(bookingsProvider.notifier)
-                  .updateStatus(booking.id, 'cancelled');
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Booking telah dibatalkan')),
-              );
-            },
-            child: const Text('Ya, Batalkan'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmCompletion(
-      BuildContext context, ServiceBooking booking, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Selesai'),
-        content: const Text('Apakah Anda sudah mengambil mobil Anda?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Belum'),
-          ),
-          TextButton(
-            onPressed: () {
-              ref
-                  .read(bookingsProvider.notifier)
-                  .updateStatus(booking.id, 'completed');
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Terima kasih telah menggunakan layanan kami!')),
-              );
-            },
-            child: const Text('Sudah'),
-          ),
-        ],
-      ),
-    );
   }
 }

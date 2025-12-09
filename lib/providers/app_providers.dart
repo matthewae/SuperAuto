@@ -20,6 +20,8 @@ import '../data/dao/car_dao.dart';
 import '../data/dao/user_dao.dart';
 import '../data/dao/service_booking_dao.dart';
 import '../data/db/app_database.dart';
+import '../services/history_service.dart';
+
 
 const _uuid = Uuid();
 
@@ -413,14 +415,15 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 
 // Bookings
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
-  final dao = ref.watch(serviceBookingDaoProvider);
-  return BookingsNotifier(dao);
+  return BookingsNotifier(ServiceBookingDao(ref.watch(databaseProvider)));
 });
 
 class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
-  final ServiceBookingDao _dao;
 
-  BookingsNotifier(this._dao) : super(const []) {
+  final ServiceBookingDao _dao;
+  bool _isInitialized = false;
+
+  BookingsNotifier(this._dao) : super([]) {
     _loadBookings();
   }
 
@@ -428,13 +431,16 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     try {
       final bookings = await _dao.getAll();
       state = bookings;
-      _dao.debugPrintAllBookings();
+      _isInitialized = true;
     } catch (e) {
       print('Error loading bookings: $e');
       state = [];
+      _isInitialized = false;
     }
   }
-
+  Future<void> refresh() async {
+    await _loadBookings();
+  }
   Future<void> add(ServiceBooking booking) async {
     try {
       await _dao.insert(booking);
@@ -445,30 +451,102 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     }
   }
 
+
+
+  // Add this method to your BookingsNotifier if it doesn't exist
+  Future<void> updateServiceDetails({
+    required String id,
+    required List<String> jobs,
+    required List<String> parts,
+    required int km,
+    required double totalCost,
+    required String notes,
+  }) async {
+    try {
+      final booking = state.firstWhere((b) => b.id == id);
+      final updatedBooking = booking.copyWith(
+        jobs: jobs,
+        parts: parts,
+        km: km,
+        totalCost: totalCost,
+        adminNotes: notes,
+      );
+      await _dao.update(updatedBooking);
+      state = [updatedBooking, ...state.where((b) => b.id != id)];
+    } catch (e) {
+      print('Error updating service details: $e');
+      rethrow;
+    }
+  }
   Future<void> updateStatus(String id, String status, {String? notes}) async {
     try {
       final booking = state.firstWhere((b) => b.id == id);
-      final updated = booking.copyWith(
-        status: status,
-        adminNotes: notes,
-        updatedAt: DateTime.now(),
-        statusHistory: {
-          ...?booking.statusHistory,
-          DateTime.now().toIso8601String(): {
-            'status': status,
-            'notes': notes,
-            'updatedAt': DateTime.now().toIso8601String(),
-          }
-        },
+
+      // Don't allow updating completed or cancelled bookings
+      if (booking.status == 'completed' || booking.status == 'cancelled') {
+        throw Exception('Tidak dapat mengubah status booking yang sudah selesai/dibatalkan');
+      }
+
+      final now = DateTime.now();
+
+      // ✅ Build new status history
+      final Map<String, dynamic> newStatusHistory = Map<String, dynamic>.from(
+        booking.statusHistory ?? {},
       );
-      await _dao.update(updated);
-      await _loadBookings();
+
+      // Add new status to history dengan format yang konsisten
+      newStatusHistory[status] = now.toIso8601String();
+
+      print('📝 Updating status from ${booking.status} to $status');
+      print('📜 New status history: $newStatusHistory');
+
+      final updatedBooking = booking.copyWith(
+        status: status,
+        adminNotes: notes ?? booking.adminNotes,
+        updatedAt: now,
+        statusHistory: newStatusHistory,
+      );
+
+      await _dao.update(updatedBooking);
+
+      // Update state
+      state = state.map((b) => b.id == id ? updatedBooking : b).toList();
+
+      print('✅ Status updated successfully');
     } catch (e) {
-      print('Error updating booking status: $e');
+      print('❌ Error updating status: $e');
       rethrow;
     }
   }
 
+  Future<void> updateStatusAndDetails({
+    required String id,
+    required String status,
+    List<String>? jobs,
+    List<String>? parts,
+    int? km,
+    double? totalCost,
+    String? adminNotes,
+  }) async {
+    try {
+      final booking = state.firstWhere((b) => b.id == id);
+      final updatedBooking = booking.copyWith(
+        status: status,
+        jobs: jobs,
+        parts: parts,
+        km: km,
+        totalCost: totalCost,
+        adminNotes: adminNotes,
+        updatedAt: DateTime.now(),
+      );
+
+      await _dao.updateStatusAndDetails(updatedBooking);
+      state = [updatedBooking, ...state.where((b) => b.id != id)];
+    } catch (e) {
+      print('Error updating booking details: $e');
+      rethrow;
+    }
+  }
   Future<void> delete(String id) async {
     try {
       await _dao.delete(id);
@@ -487,17 +565,33 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       return [];
     }
   }
+  final activeBookingsProvider = FutureProvider.autoDispose
+      .family<List<ServiceBooking>, String>((ref, userId) async {
+    final bookings = await ref.read(bookingsProvider.notifier).getByUserId(userId);
+    return bookings
+        .where((b) => b.status != 'completed' && b.status != 'cancelled')
+        .toList();
+  });
+  Future<void> update(ServiceBooking booking) async {
+    try {
+      await _dao.update(booking);
+      state = state.map((b) => b.id == booking.id ? booking : b).toList();
+    } catch (e) {
+      print('Error updating booking: $e');
+      rethrow;
+    }
+  }
 }
 
 // Service History
-final historyProvider = StateNotifierProvider<HistoryNotifier, List<ServiceHistoryItem>>((ref) {
-  return HistoryNotifier();
-});
-
-class HistoryNotifier extends StateNotifier<List<ServiceHistoryItem>> {
-  HistoryNotifier() : super(const []);
-  void add(ServiceHistoryItem h) => state = [...state, h];
-}
+// final historyProvider = StateNotifierProvider<HistoryNotifier, List<ServiceHistoryItem>>((ref) {
+//   return HistoryNotifier();
+// });
+//
+// class HistoryNotifier extends StateNotifier<List<ServiceHistoryItem>> {
+//   HistoryNotifier() : super(const []);
+//   void add(ServiceHistoryItem h) => state = [...state, h];
+// }
 
 // Bundlings
 final bundlingsProvider = StateNotifierProvider<BundlingsNotifier, List<Bundling>>((ref) {
@@ -521,6 +615,23 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 
 // Loyalty
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);
+
+// History Completed Service
+// final serviceHistoryDaoProvider = Provider<ServiceHistoryDao>((ref) {
+//   final db = ref.watch(databaseProvider);
+//   return ServiceHistoryDao(db);
+// });
+//
+// final historyServiceProvider = Provider<HistoryService>((ref) {
+//   final dao = ref.watch(serviceHistoryDaoProvider);
+//   return HistoryService(dao);
+// });
+//
+// // Add this provider for the history page
+// final userHistoryProvider = FutureProvider.autoDispose.family<List<ServiceHistoryItem>, String>((ref, userId) async {
+//   final historyService = ref.watch(historyServiceProvider);
+//   return await historyService.getUserHistory(userId);
+// });
 
 // final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
 //   final notifier = MainCarNotifier(ref: ref);

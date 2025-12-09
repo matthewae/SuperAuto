@@ -2,14 +2,16 @@ import '../data/dao/user_dao.dart';
 import '../models/user.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/app_providers.dart';
 
 class AuthService {
   final UserDao _userDao;
   bool _initialized = false;
   User? _currentUser;
+  final Ref? _ref;
 
-
-  AuthService(this._userDao);
+  AuthService(this._userDao, {Ref? ref}) : _ref = ref;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -90,36 +92,43 @@ class AuthService {
   }
 
   Future<User?> login(String email, String password) async {
-    debugPrint('Attempting login for email: $email');
-    await init(); // pastikan admin sudah dibuat dulu
-
     try {
-      final user = await _userDao.login(email, password);
-      if (user != null) {
-        _currentUser = user;
+      // Your existing login logic
+      final user = await _userDao.getUserByEmail(email);
+      if (user != null && user.password == password) {
+        // Save user session
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_user_email', user.email);
-        debugPrint('User logged in - ID: ${user.id}, Email: ${user.email} ');
-            return user;
-        } else {
-            debugPrint('Login failed - Invalid credentials for email: $email');
-            return null;
-            }
-        } catch (e) {
-          debugPrint('Error during login: $e');
-          rethrow;
+        await prefs.setString('user_id', user.idString);
+
+        // Refresh bookings if we have a ref
+        if (_ref != null) {
+          _ref!.read(bookingsProvider.notifier).refresh();
         }
+        return user;
       }
+      return null;
+    } catch (e) {
+      print('Login error: $e');
+      rethrow;
+    }
+  }
 
   User? currentUser() {
     return _currentUser;
   }
 
   Future<void> logout() async {
-    debugPrint('👋 Logging out user: ${_currentUser?.email}');
-    _currentUser = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('current_user_email');
-    debugPrint('✅ User logged out and data cleared');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_id');
+
+      // Invalidate providers if we have a ref
+      if (_ref != null) {
+        _ref!.invalidate(bookingsProvider);
+      }
+    } catch (e) {
+      print('Logout error: $e');
+      rethrow;
+    }
   }
 }

@@ -11,6 +11,10 @@ class ServiceBooking {
   final String? notes;
   final String? adminNotes;
   final Map<String, dynamic>? statusHistory;
+  final List<String> jobs;
+  final List<String> parts;
+  final int? km;
+  final double? totalCost;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? serviceDetails;
@@ -30,6 +34,10 @@ class ServiceBooking {
     this.notes,
     this.adminNotes,
     this.statusHistory,
+    this.jobs = const [],
+    this.parts = const [],
+    this.km,
+    this.totalCost,
     DateTime? createdAt,
     this.updatedAt,
     this.serviceDetails,
@@ -50,7 +58,11 @@ class ServiceBooking {
       'status': status,
       'notes': notes,
       'adminNotes': adminNotes,
-      'statusHistory': statusHistory != null ? jsonEncode(statusHistory) : null,  // Convert to JSON string
+      'statusHistory': statusHistory != null ? jsonEncode(statusHistory) : null,
+      'jobs': jsonEncode(jobs),
+      'parts': jsonEncode(parts),
+      'km': km,
+      'totalCost': totalCost,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'serviceDetails': serviceDetails,
@@ -75,6 +87,14 @@ class ServiceBooking {
       statusHistory: map['statusHistory'] != null
           ? Map<String, dynamic>.from(jsonDecode(map['statusHistory']))
           : null,
+      jobs: map['jobs'] != null
+          ? List<String>.from(jsonDecode(map['jobs']))
+          : [],
+      parts: map['parts'] != null
+          ? List<String>.from(jsonDecode(map['parts']))
+          : [],
+      km: map['km'] != null ? map['km'] as int : null,
+      totalCost: map['totalCost']?.toDouble(),
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : DateTime.now(),
@@ -93,38 +113,38 @@ class ServiceBooking {
     String? userId,
     String? carId,
     String? serviceType,
-    DateTime? scheduledAt,
-    double? estimatedCost,
-    String? status,
     String? workshop,
+    DateTime? scheduledAt,
+    String? status,
+    double? estimatedCost,
     String? notes,
     String? adminNotes,
     Map<String, dynamic>? statusHistory,
+    List<String>? jobs,
+    List<String>? parts,
+    int? km,
+    double? totalCost,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? serviceDetails,
-    String? mechanicName,
-    bool? isPickupService,
-    String? serviceLocation,
   }) {
     return ServiceBooking(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       carId: carId ?? this.carId,
       serviceType: serviceType ?? this.serviceType,
-      scheduledAt: scheduledAt ?? this.scheduledAt,
-      estimatedCost: estimatedCost ?? this.estimatedCost,
-      status: status ?? this.status,
       workshop: workshop ?? this.workshop,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      status: status ?? this.status,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
       notes: notes ?? this.notes,
       adminNotes: adminNotes ?? this.adminNotes,
       statusHistory: statusHistory ?? this.statusHistory,
+      jobs: jobs ?? this.jobs,
+      parts: parts ?? this.parts,
+      km: km ?? this.km,
+      totalCost: totalCost ?? this.totalCost,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      serviceDetails: serviceDetails ?? this.serviceDetails,
-      mechanicName: mechanicName ?? this.mechanicName,
-      isPickupService: isPickupService ?? this.isPickupService,
-      serviceLocation: serviceLocation ?? this.serviceLocation,
     );
   }
 }

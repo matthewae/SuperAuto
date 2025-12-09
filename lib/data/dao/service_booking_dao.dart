@@ -111,6 +111,31 @@ class ServiceBookingDao {
     );
   }
 
+
+
+  Future<int> updateStatusAndDetails(ServiceBooking booking) async {
+    try {
+      final result = await db.update(
+        'service_bookings',
+        {
+          'status': booking.status,
+          'jobs': jsonEncode(booking.jobs),
+          'parts': jsonEncode(booking.parts),
+          'km': booking.km,
+          'totalCost': booking.totalCost,
+          'adminNotes': booking.adminNotes,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [booking.id],
+      );
+      _log('Updated booking ${booking.id} with status ${booking.status}');
+      return result;
+    } catch (e, stack) {
+      _log('Error updating booking: $e\n$stack', isError: true);
+      rethrow;
+    }
+  }
   Future<List<ServiceBooking>> getByStatus(String status) async {
     final db = await AppDatabase.instance.database;
     final results = await db.query(

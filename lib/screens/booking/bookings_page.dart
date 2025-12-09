@@ -34,16 +34,23 @@ class BookingsPage extends ConsumerWidget {
 
   Widget _buildBookingsList(
       BuildContext context, List<ServiceBooking> bookings, WidgetRef ref) {
-    if (bookings.isEmpty) {
+    // Filter out completed and cancelled bookings
+    final activeBookings = bookings.where((booking) =>
+    booking.status != 'completed' &&
+        booking.status != 'cancelled' &&
+        booking.status != 'ready_for_pickup' // Exclude ready for pickup as per your requirement
+    ).toList();
+
+    if (activeBookings.isEmpty) {
       return const Center(
-        child: Text('Belum ada riwayat booking'),
+        child: Text('Tidak ada booking aktif saat ini'),
       );
     }
 
     return ListView.builder(
-      itemCount: bookings.length,
+      itemCount: activeBookings.length,
       itemBuilder: (context, index) {
-        final booking = bookings[index];
+        final booking = activeBookings[index];
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
