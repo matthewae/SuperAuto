@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AdminOrdersPage extends ConsumerWidget {
@@ -8,16 +8,14 @@ class AdminOrdersPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Order Management'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Admin Order Management',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
             Expanded(
               child: Consumer(
                 builder: (context, ref, child) {
@@ -26,10 +24,13 @@ class AdminOrdersPage extends ConsumerWidget {
                     itemCount: productOrders.length,
                     itemBuilder: (context, index) {
                       final order = productOrders[index];
-                      return GFCard(
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             Text('Order ID: ${order.id}'),
                             Text('Customer: ${order.customerName}'),
                             Text('Product: ${order.productName}'),
@@ -39,16 +40,19 @@ class AdminOrdersPage extends ConsumerWidget {
                             Row(
                               children: [
                                 if (order.status == ProductOrderStatus.pending)
-                                  GFButton(
+                                  FilledButton(
                                     onPressed: () {
                                       ref.read(productOrderListProvider.notifier).confirmOrder(order.id);
                                     },
-                                    text: 'Confirm',
-                                    color: GFColors.SUCCESS,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    child: const Text('Confirm'),
                                   ),
                                 const SizedBox(width: 8),
                                 if (order.status == ProductOrderStatus.confirmed)
-                                  GFButton(
+                                  ElevatedButton(
                                     onPressed: () {
                                       ref.read(productOrderListProvider.notifier).sendReceipt(order.id);
                                       ScaffoldMessenger.of(context).showSnackBar(
@@ -58,14 +62,17 @@ class AdminOrdersPage extends ConsumerWidget {
                                         ),
                                       );
                                     },
-                                    text: 'Send Receipt',
-                                    color: GFColors.PRIMARY,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    child: const Text('Send Receipt'),
                                   ),
                               ],
                             ),
                           ],
                         ),
-                      );
+                      ));
                     },
                   );
                 },

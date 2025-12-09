@@ -12,7 +12,7 @@ import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
 
 
-import '../../models/car.dart';
+
 
 class BookingPage extends ConsumerStatefulWidget {
 

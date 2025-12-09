@@ -12,39 +12,32 @@ class AdminProducts extends ConsumerWidget {
     final products = ref.watch(productsProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Product Management', style: Theme.of(context).textTheme.titleLarge),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const ProductFormDialog(),
+              );
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    "Products",
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                FilledButton.icon(
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text("Add"),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => const ProductFormDialog(),
-                    );
-                  },
-                ),
-
-              ],
-            ),
-
-            const SizedBox(height: 20),
             Expanded(
               child: ListView.separated(
                 itemCount: products.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (_, i) => ProductItem(product: products[i]),
+                separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerColor),
+                itemBuilder: (_, i) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ProductItem(product: products[i]),
+                ),
               ),
             )
           ],

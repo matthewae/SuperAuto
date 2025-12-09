@@ -12,8 +12,8 @@ class ProductItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListTile(
-      title: Text(product.name),
-      subtitle: Text("Rp ${product.price} • ${product.category.name}"),
+      title: Text(product.name, style: Theme.of(context).textTheme.titleMedium),
+      subtitle: Text("Rp ${product.price} • ${product.category.name}", style: Theme.of(context).textTheme.bodyMedium),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

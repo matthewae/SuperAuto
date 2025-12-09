@@ -8,16 +8,14 @@ class AdminServicePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Service Bay Status'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Service Bay Status',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
             Expanded(
               child: Consumer(
                 builder: (context, ref, child) {
@@ -48,13 +46,15 @@ class AdminServicePage extends ConsumerWidget {
                               textAlign: TextAlign.center,
                             ),
                             if (bay.status == ServiceBayStatus.occupied)
-                              GFButton(
+                              ElevatedButton(
                                 onPressed: () {
                                   ref.read(serviceBayListProvider.notifier).markBayAsAvailable(bay.id);
                                 },
-                                text: 'Mark as Available',
-                                color: GFColors.LIGHT,
-                                textColor: GFColors.DARK,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(context).colorScheme.surface,
+                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                ),
+                                child: const Text('Mark as Available'),
                               ),
                           ],
                         ),

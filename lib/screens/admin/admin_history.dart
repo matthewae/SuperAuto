@@ -270,11 +270,26 @@ class AdminHistoryPage extends ConsumerWidget {
     required bool isActive,
     required VoidCallback onTap,
   }) {
-    return GFButton(
-      onPressed: onTap,
-      text: label,
-      type: isActive ? GFButtonType.solid : GFButtonType.outline,
-      color: Colors.blue,
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: FilledButton(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: isActive
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.surfaceVariant,
+            foregroundColor: isActive
+                ? Theme.of(context).colorScheme.onPrimary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          child: Text(label),
+        ),
+      ),
     );
   }
 }

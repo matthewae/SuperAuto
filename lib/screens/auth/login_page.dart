@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:getwidget/components/appbar/gf_appbar.dart';
 import 'package:getwidget/components/button/gf_button.dart';
@@ -132,11 +133,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         final email = emailController.text;
                         final password = passwordController.text;
 
-                        print('Starting login process for: $email');
+                        debugPrint('Starting login process for: $email');
 
                         try {
                           final user = await ref.read(authProvider.notifier).login(email, password);
-                          print('Login result - User: ${user?.email}');
+                          debugPrint('Login result - User: ${user?.email}');
 
                           if (user != null) {
                             print('Login successful, initializing notifications...');

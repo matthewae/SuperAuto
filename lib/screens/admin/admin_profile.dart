@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/app_providers.dart';
+import '../../core/theme.dart';
 
 // Placeholder for an authentication service
 class AuthService extends StateNotifier<bool> {
@@ -23,24 +25,56 @@ class AdminProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Profile'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Admin Profile',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Consumer(
+              builder: (context, ref, child) {
+                final currentUser = ref.read(authProvider.notifier).currentUser;
+                if (currentUser == null) {
+                  return const Text('Tidak ada admin yang login.');
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selamat datang, ${currentUser.name}!',
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Email: ${currentUser.email}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                    SwitchListTile(
+                      title: const Text('Dark Mode'),
+                      value: ref.watch(themeModeProvider) == ThemeMode.dark,
+                      onChanged: (value) {
+                        ref.read(themeModeProvider.notifier).toggle();
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 24),
-            GFButton(
+            ElevatedButton(
               onPressed: () {
                 ref.read(authServiceProvider.notifier).logout();
                 context.go('/login');
               },
-              text: 'Logout Admin',
-              blockButton: true,
-              color: GFColors.DANGER,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50), // full width button
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Logout Admin'),
             ),
           ],
         ),

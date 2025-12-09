@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:getwidget/components/appbar/gf_appbar.dart';
-import 'package:getwidget/components/button/gf_button.dart';
+
 import 'package:getwidget/getwidget.dart'; // Added this import
 import 'package:go_router/go_router.dart';
 
