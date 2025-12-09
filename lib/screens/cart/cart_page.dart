@@ -71,7 +71,7 @@ class CartPage extends ConsumerWidget {
                                     icon: const Icon(Icons.remove_circle_outline),
                                     onPressed: () {
                                       if (item.quantity > 1) {
-                                        ref.read(cartProvider.notifier).addItem(product, quantity: -1);
+                                        ref.read(cartProvider.notifier).addItem(productId: product.id, productName: product.name, price: product.price, quantity: -1);
                                       } else {
                                         ref.read(cartProvider.notifier).removeItem(item.productId);
                                       }
@@ -81,7 +81,7 @@ class CartPage extends ConsumerWidget {
                                   IconButton(
                                     icon: const Icon(Icons.add_circle_outline),
                                     onPressed: () {
-                                      ref.read(cartProvider.notifier).addItem(product, quantity: 1);
+                                      ref.read(cartProvider.notifier).addItem(productId: product.id, productName: product.name, price: product.price, quantity: 1);
                                     },
                                   ),
                                   const Spacer(),

@@ -1,15 +1,17 @@
-import 'package:flutter/material.dart';
+
 import 'package:getwidget/getwidget.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:intl/intl.dart';
+
+
 import '../../models/enums.dart';
 import '../../models/service_booking.dart';
 import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
-import '../../widgets/neumorphic_header.dart';
-import '../../models/user.dart';  // Adjust the path as needed
+
+
 import '../../models/car.dart';
 
 class BookingPage extends ConsumerStatefulWidget {
@@ -21,8 +23,8 @@ class BookingPage extends ConsumerStatefulWidget {
 }
 extension TimeOfDayExtension on TimeOfDay {
   TimeOfDay add({int hours = 0, int minutes = 0}) {
-    int newMinutes = (this.minute + minutes) % 60;
-    int addHours = (this.minute + minutes) ~/ 60;
+    int newMinutes = (minute + minutes) % 60;
+    int addHours = (minute + minutes) ~/ 60;
     int newHours = (this.hour + hours + addHours) % 24;
     return TimeOfDay(hour: newHours, minute: newMinutes);
   }
@@ -40,7 +42,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     final now = TimeOfDay.now();
     _time = TimeOfDay(hour: now.hour, minute: 0);
     _time = _time.add(hours: 1);
-    final notificationService = NotificationService();
+    
+    final userCars = ref.read(carsProvider);
+    _selectedCarId = userCars.firstWhereOrNull((car) => car.isMain)?.id;
 
   }
 
@@ -49,27 +53,13 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   double _estimated = 500000;
   String? _selectedCarId;
 
-  bool _isPickupService = false;
+
   bool _isSubmitting = false;
   final _uuid = const Uuid();
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedCarId = ref.read(mainCarIdProvider);
-  }
 
-  // Available time slots (every 30 minutes from 8 AM to 5 PM)
-  List<TimeOfDay> get _availableTimeSlots {
-    final slots = <TimeOfDay>[];
-    for (var hour = 8; hour <= 17; hour++) {
-      slots.add(TimeOfDay(hour: hour, minute: 0));
-      if (hour < 17) {
-        slots.add(TimeOfDay(hour: hour, minute: 30));
-      }
-    }
-    return slots;
-  }
+
+
 
   @override
   void dispose() {
@@ -147,23 +137,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
       }
     }
   }
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _date) {
-      setState(() {
-        _date = picked;
-      });
-    }
-  }
 
-  String _formatDate(BuildContext context, DateTime date) {
-    return MaterialLocalizations.of(context).formatMediumDate(date);
-  }
+
+
 
   Future<void> _selectTime() async {
     final pickedTime = await showTimePicker(
@@ -192,8 +168,9 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   @override
   Widget build(BuildContext context) {
 
-    final theme = Theme.of(context);
+    
     final authState = ref.watch(authProvider);
+    final user = authState.value;
     final userCars = ref.watch(carsProvider);
     final mainCar = userCars.firstWhereOrNull((car) => car.isMain);
 
@@ -218,7 +195,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                   // ---------------------------------------
                   // PILIH MOBIL
                   // ---------------------------------------
-                  if (cars.isNotEmpty)
+                  if (userCars.isNotEmpty)
                     Neumorphic(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       style: NeumorphicStyle(
@@ -239,7 +216,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                             isExpanded: true,
                             value: _selectedCarId,
                             hint: const Text('Pilih Mobil'),
-                            items: cars
+                            items: userCars
                                 .map(
                                   (car) => DropdownMenuItem(
                                     value: car.id,
@@ -334,7 +311,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: TextField(
-                        controller: _workshop,
+                        controller: _workshopController,
                         decoration: const InputDecoration(
                           labelText: 'Pilih Bengkel',
                           border: InputBorder.none,
@@ -474,6 +451,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                     builder: (innerContext) => GFButton(
                       icon: const Icon(Icons.book_online),
                       onPressed: () {
+                        final user = ref.read(authProvider).value;
                         if (user == null || _selectedCarId == null) {
                           ScaffoldMessenger.of(innerContext).showSnackBar(
                             const SnackBar(
@@ -493,10 +471,10 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
                         final booking = ServiceBooking(
                           id: _uuid.v4(),
-                          userId: user.id,
+                          userId: user.idString,
                           carId: _selectedCarId!,
-                          type: _type,
-                          workshop: _workshop.text,
+                          serviceType: _type.toString().split('.').last,
+                          workshop: _workshopController.text,
                           scheduledAt: scheduled,
                           estimatedCost: _estimated,
                         );
@@ -525,12 +503,5 @@ class _BookingPageState extends ConsumerState<BookingPage> {
             ),
     )
     );
-  }
-}extension IterableExtension<T> on Iterable<T> {
-  T? firstWhereOrNull(bool Function(T) test) {
-    for (var element in this) {
-      if (test(element)) return element;
-    }
-    return null;
   }
 }

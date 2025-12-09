@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
-import '../../providers/app_providers.dart';
 import '../../models/user.dart';
 import '../../providers/app_providers.dart';
+import '../../widgets/neumorphic_header.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -18,7 +18,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final authNotifier = ref.read(authProvider.notifier);
+
     final themeMode = ref.watch(themeModeProvider);
     final authState = ref.watch(authProvider);
     final user = authState.valueOrNull;
@@ -57,204 +57,84 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                // Profile Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                  child: Row(
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: NeumorphicHeader(title: 'Profil', subtitle: 'Kelola akun Anda'),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      if (user != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              user?.name ?? 'Pengguna',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                              child: Icon(Icons.person, size: 40, color: Theme.of(context).colorScheme.onPrimaryContainer),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 16),
                             Text(
-                              user?.email ?? 'user@example.com',
-                              style: TextStyle(
-                                color: Theme.of(context).hintColor,
-                              ),
+                              user.name,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                             ),
+                            Text(
+                              user.email,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 24),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Settings List
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    children: [
-                      // Theme Toggle
                       ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            themeMode == ThemeMode.dark
-                                ? Icons.dark_mode
-                                : Icons.light_mode,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        title: const Text('Tema Gelap'),
-                        trailing: Switch(
-                          value: themeMode == ThemeMode.dark,
-                          onChanged: (_) =>
-                              ref.read(themeModeProvider.notifier).toggle(),
-                        ),
-                      ),
-                      const Divider(height: 1),
-
-                      // Logout Button
-                      ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.logout,
-                            color: Colors.red,
-                          ),
-                        ),
-                        title: const Text(
-                          'Keluar',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                        onTap: _isLoggingOut
-                            ? null
-                            : () async {
-                          setState(() => _isLoggingOut = true);
-                          try {
-                            await authNotifier.logout();
-                          } catch (e) {
-                            if (mounted) {
-                              setState(() => _isLoggingOut = false);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Logout gagal: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
+                        leading: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        title: Text('Edit Profil', style: Theme.of(context).textTheme.titleMedium),
+                        trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16),
+                        onTap: () {
+                          context.push('/edit-profile');
                         },
                       ),
+                      const Divider(),
+                      ListTile(
+                        leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        title: Text('Dark Mode', style: Theme.of(context).textTheme.titleMedium),
+                        trailing: Switch(
+                          value: themeMode == ThemeMode.dark,
+                          onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+                        ),
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          // TODO: Implement actual logout logic (e.g., clear session, call auth provider)
+                          context.go('/login');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor: Theme.of(context).colorScheme.onError,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text('Logout', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onError)),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          // Loading Overlay
           if (_isLoggingOut)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withAlpha((255 * 0.5).round()),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
             ),
-        ],
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: NeumorphicHeader(title: 'Profil', subtitle: 'Kelola akun Anda'),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (user != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                          child: Icon(Icons.person, size: 40, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          user.name,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          user.email,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  // ... rest of the widgets
-                  ListTile(
-                    leading: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    title: Text('Edit Profil', style: Theme.of(context).textTheme.titleMedium),
-                    trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16),
-                    onTap: () {
-                      context.push('/edit-profile');
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    title: Text('Dark Mode', style: Theme.of(context).textTheme.titleMedium),
-                    trailing: Switch(
-                      value: themeMode == ThemeMode.dark,
-                      onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
-                    ),
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: Implement actual logout logic (e.g., clear session, call auth provider)
-                      context.go('/login');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      foregroundColor: Theme.of(context).colorScheme.onError,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Logout', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onError)),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

@@ -52,7 +52,7 @@ class ProductDetailPage extends ConsumerWidget {
                   const SizedBox(height: 24),
                   GFButton(
                     onPressed: () {
-                      ref.read(cartProvider.notifier).addItem(product);
+                      ref.read(cartProvider.notifier).addItem(productId: product.id, productName: product.name, price: product.price);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('${product.name} ditambahkan ke keranjang!'),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
+
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
@@ -23,7 +23,7 @@ class HomePage extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: Theme.of(context).dividerColor.withOpacity(0.1),
+          color: Theme.of(context).dividerColor.withAlpha((255 * 0.1).round()),
           width: 1,
         ),
       ),
@@ -37,7 +37,7 @@ class HomePage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color?.withOpacity(0.1) ?? Theme.of(context).primaryColor.withOpacity(0.1),
+                  color: color?.withAlpha((255 * 0.1).round()) ?? Theme.of(context).primaryColor.withAlpha((255 * 0.1).round()),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -62,7 +62,7 @@ class HomePage extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                        color: Theme.of(context).textTheme.bodySmall?.color?.withAlpha((255 * 0.7).round()),
                         fontSize: 14,
                       ),
                     ),
@@ -89,8 +89,8 @@ class HomePage extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDark ? Colors.white : Theme.of(context).primaryColor;
     final backgroundColor = isDark
-        ? Colors.white.withOpacity(0.1)
-        : Theme.of(context).primaryColor.withOpacity(0.1);
+        ? Colors.white.withAlpha((255 * 0.1).round())
+        : Theme.of(context).primaryColor.withAlpha((255 * 0.1).round());
 
     return Expanded(
       child: Container(
@@ -105,7 +105,7 @@ class HomePage extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.1),
+                  color: Theme.of(context).dividerColor.withAlpha((255 * 0.1).round()),
                   width: 1,
                 ),
               ),
@@ -151,7 +151,8 @@ class HomePage extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
+        child: Column(
+          children: [
           const NeumorphicHeader(title: "Selamat Datang", subtitle: "Jelajahi layanan kami"),
           const SizedBox(height: 12),
           CarouselSlider(
@@ -185,22 +186,26 @@ class HomePage extends StatelessWidget {
             }).toList(),
           ),
           const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              title: const Text('Mobil Utama'),
-              subtitle: const Text('Pilih atau tambahkan mobil'),
-              trailing: const Icon(Icons.directions_car),
-              onTap: () => context.push('/cars'),
-              color: Colors.blue,
-            ),
-            _buildFeatureCard(
-              context: context,
-              icon: Icons.build,
-              title: 'Booking Servis',
-              subtitle: 'Jadwalkan servis mobil Anda',
-              onTap: () => context.push('/booking'),
-              color: Colors.orange,
-            ),
+          Column(
+            children: [
+              Card(
+                child: ListTile(
+                  title: const Text('Mobil Utama'),
+                  subtitle: const Text('Pilih atau tambahkan mobil'),
+                  trailing: const Icon(Icons.directions_car),
+                  onTap: () => context.push('/cars'),
+                ),
+              ),
+              _buildFeatureCard(
+                context: context,
+                icon: Icons.build,
+                title: 'Booking Servis',
+                subtitle: 'Jadwalkan servis mobil Anda',
+                onTap: () => context.push('/booking'),
+                color: Colors.orange,
+              ),
+            ],
+          ),
             
             const SizedBox(height: 16),
             const Text(

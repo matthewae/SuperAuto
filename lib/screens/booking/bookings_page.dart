@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import 'booking_detail_page.dart';
 import '../../models/service_booking.dart';
 
 class BookingsPage extends ConsumerWidget {
-  const BookingsPage({Key? key}) : super(key: key);
+  const BookingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,12 +20,12 @@ class BookingsPage extends ConsumerWidget {
       ),
       body: bookingsState.when(
         data: (bookings) {
-          print('📋 BookingsPage: Showing ${bookings.length} bookings for user ${currentUser?.id}');
+          debugPrint('📋 BookingsPage: Showing ${bookings.length} bookings for user ${currentUser?.id}');
           return _buildBookingsList(context, bookings, ref);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) {
-          print('❌ BookingsPage Error: $error');
+          debugPrint('❌ BookingsPage Error: $error');
           return Center(child: Text('Error: $error'));
         },
       ),

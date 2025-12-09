@@ -54,8 +54,8 @@ class OrderHistoryPage extends ConsumerWidget {
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: ListTile(
-                      title: Text('Layanan: ${booking.type.name}'),
-                      subtitle: Text('Status: ${booking.status.name} - ${booking.scheduledAt.toLocal().toString().split(' ')[0]}'),
+                      title: Text('Layanan: ${booking.serviceType}'),
+                      subtitle: Text('Status: ${booking.status} - ${booking.scheduledAt.toLocal().toString().split(' ')[0]}'),
                       trailing: const Icon(Icons.arrow_forward_ios),
                       onTap: () {
                         // TODO: Navigate to booking detail page

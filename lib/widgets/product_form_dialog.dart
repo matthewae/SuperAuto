@@ -53,7 +53,7 @@ class _FormState extends ConsumerState<ProductFormDialog> {
               TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Price")),
               TextField(controller: desc, decoration: const InputDecoration(labelText: "Description")),
               DropdownButtonFormField(
-                value: category,
+                initialValue: category,
                 items: ProductCategory.values.map((c) {
                   return DropdownMenuItem(value: c, child: Text(c.nameStr));
                 }).toList(),

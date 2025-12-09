@@ -76,23 +76,6 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  String _getTitleForIndex(int index) {
-    switch (index) {
-      case 0:
-        return 'Home';
-      case 1:
-        return 'Riwayat';
-      case 2:
-        return 'Catalog';
-      case 3:
-        return 'Booking';
-      case 4:
-        return 'Profile';
-      default:
-        return 'SuperAuto';
-    }
-  }
-
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
@@ -105,10 +88,10 @@ class _MainShellState extends State<MainShell> {
         GoRouter.of(context).go('/catalog');
         break;
       case 3:
-        GoRouter.of(context).go('/booking');
+        GoRouter.of(context).push('/profile');
         break;
       case 4:
-        GoRouter.of(context).go('/profile');
+        GoRouter.of(context).go('/booking');
         break;
     }
   }

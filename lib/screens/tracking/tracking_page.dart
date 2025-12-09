@@ -31,7 +31,7 @@ class TrackingPage extends ConsumerWidget {
           final b = bookings[i - 1];
           return GFCard(
             title: GFListTile(
-              title: Text('${b.serviceType}'),
+              title: Text(b.serviceType),
               subTitle: Text('Status: ${b.status}'),
               icon: PopupMenuButton<String>(
                 onSelected: (s) => ref.read(bookingsProvider.notifier).updateStatus(b.id, s),

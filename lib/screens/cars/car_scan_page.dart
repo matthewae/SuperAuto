@@ -15,13 +15,11 @@ class CarScanPage extends ConsumerStatefulWidget {
 
 class _CarScanPageState extends ConsumerState<CarScanPage> {
   final _uuid = const Uuid();
-  bool _added = false;
-  bool _isLoading = false;
+  final bool _added = false;
+
 
   Future<bool> _waitForAuthInitialization() async {
     final authNotifier = ref.read(authProvider.notifier);
-    if (authNotifier is! AuthNotifier) return false;
-    
     int attempts = 0;
     while (!authNotifier.isInitialized && attempts < 10) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -32,7 +30,6 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
 
   Future<void> _addFromMap(Map<String, dynamic> data) async {
     try {
-      setState(() => _isLoading = true);
 
       final isInitialized = await _waitForAuthInitialization();
       if (!isInitialized) {
@@ -88,9 +85,7 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+
     }
   }
   @override

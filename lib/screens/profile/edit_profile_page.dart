@@ -9,7 +9,7 @@ class EditProfilePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(userStateProvider);
+    final user = ref.watch(authProvider).value;
 
     return Scaffold(
       appBar: AppBar(
@@ -50,23 +50,25 @@ class EditProfilePage extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 24),
+                        TextFormField(
+                          initialValue: user.name,
+                          decoration: const InputDecoration(
+                            labelText: 'Nama',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          initialValue: user.email,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   // TODO: Add form fields for editing profile (e.g., name, email, password)
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Nama',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
                   const SizedBox(height: 24),
                   const Divider(),
                   const SizedBox(height: 24),

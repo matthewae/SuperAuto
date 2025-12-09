@@ -26,7 +26,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final auth = ref.read(authServiceProvider);
     await auth.init(); // Initialize auth service to load current user
     final user = auth.currentUser();
-    ref.read(userStateProvider.notifier).state = user;
+
 
     if (isFirstLaunch) {
       await prefs.setBool('first_launch', false);

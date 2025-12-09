@@ -7,7 +7,9 @@ import '../models/promo.dart';
 import '../models/service_history.dart';
 import '../providers/app_providers.dart';
 
-void seedDummyData(WidgetRef ref) {
+import '../data/dao/product_dao.dart';
+
+Future<void> seedDummyData(WidgetRef ref) async {
   final uuid = const Uuid();
   final products = [
     Product(
@@ -40,6 +42,33 @@ void seedDummyData(WidgetRef ref) {
       category: ProductCategory.exteriorAccessories,
       description: 'Karet wiper 24 inch.',
       price: 80000,
+    ),
+    Product(
+      id: uuid.v4(),
+      name: 'Klakson Hella Black Twin Tone',
+      category: ProductCategory.accessories,
+      description: 'Klakson mobil Hella Black Twin Tone, suara nyaring dan elegan.',
+      price: 250000,
+      compatibleModels: const ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/000000/FFFFFF?text=Klakson+Hella',
+    ),
+    Product(
+      id: uuid.v4(),
+      name: 'Lampu LED Philips Ultinon Essential',
+      category: ProductCategory.electronics,
+      description: 'Lampu depan LED Philips Ultinon Essential, terang dan tahan lama.',
+      price: 600000,
+      compatibleModels: const ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/FFFF00/000000?text=Lampu+LED+Philips',
+    ),
+    Product(
+      id: uuid.v4(),
+      name: 'Kamera Mundur Universal',
+      category: ProductCategory.electronics,
+      description: 'Kamera mundur universal dengan tampilan jernih untuk keamanan parkir.',
+      price: 350000,
+      compatibleModels: const ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/808080/FFFFFF?text=Kamera+Mundur',
     ),
   ];
 

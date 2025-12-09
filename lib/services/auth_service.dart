@@ -1,5 +1,6 @@
 import '../data/dao/user_dao.dart';
 import '../models/user.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
@@ -45,32 +46,32 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userEmail = prefs.getString('current_user_email');
-      print('Loading current user with email: $userEmail');
+      debugPrint('Loading current user with email: $userEmail');
 
       if (userEmail != null) {
         _currentUser = await _userDao.getUserByEmail(userEmail);
         if (_currentUser != null) {
-          print('Loaded current user - ID: ${_currentUser!.id}, Email: ${_currentUser!.email}');
+          debugPrint('Loaded current user - ID: ${_currentUser!.id}, Email: ${_currentUser!.email}');
         } else {
-          print('User not found in database, clearing saved email');
+          debugPrint('User not found in database, clearing saved email');
           await prefs.remove('current_user_email');
         }
       } else {
-        print('ℹNo saved user email found');
+        debugPrint('ℹNo saved user email found');
       }
     } catch (e) {
-      print('Error loading current user: $e');
+      debugPrint('Error loading current user: $e');
       rethrow;
     }
   }
 
   Future<String?> register(String email, String password, String name) async {
-    print('👤 Attempting to register user: $email');
+    debugPrint('👤 Attempting to register user: $email');
     await init();
 
     final existing = await _userDao.getUserByEmail(email);
     if (existing != null) {
-      print('User already exists: $email');
+      debugPrint('User already exists: $email');
       return "Email sudah terdaftar!";
     }
 
@@ -82,14 +83,14 @@ class AuthService {
       role: isAdmin ? "admin" : "user",
     );
 
-    print('➕ Creating new user: ${newUser.toMap()}');
+    debugPrint('➕ Creating new user: ${newUser.toMap()}');
     await _userDao.insertUser(newUser);
-    print('User created successfully');
+    debugPrint('User created successfully');
     return null;
   }
 
   Future<User?> login(String email, String password) async {
-    print('Attempting login for email: $email');
+    debugPrint('Attempting login for email: $email');
     await init(); // pastikan admin sudah dibuat dulu
 
     try {
@@ -98,14 +99,14 @@ class AuthService {
         _currentUser = user;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('current_user_email', user.email);
-        print('User logged in - ID: ${user.id}, Email: ${user.email} ');
+        debugPrint('User logged in - ID: ${user.id}, Email: ${user.email} ');
             return user;
         } else {
-            print('Login failed - Invalid credentials for email: $email');
+            debugPrint('Login failed - Invalid credentials for email: $email');
             return null;
             }
         } catch (e) {
-          print('Error during login: $e');
+          debugPrint('Error during login: $e');
           rethrow;
         }
       }
@@ -115,10 +116,10 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    print('👋 Logging out user: ${_currentUser?.email}');
+    debugPrint('👋 Logging out user: ${_currentUser?.email}');
     _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('current_user_email');
-    print('✅ User logged out and data cleared');
+    debugPrint('✅ User logged out and data cleared');
   }
 }

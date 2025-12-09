@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_providers.dart';
 import '../../models/car.dart';
-import '../../widgets/neumorphic_header.dart';
+
 
 class CarDetailPage extends ConsumerWidget {
   final String carId;
@@ -50,7 +50,7 @@ class CarDetailPage extends ConsumerWidget {
 
         // 2. Tetapkan status 'isMain' untuk mobil yang dipilih
         await ref.read(carDaoProvider).updateMainCarStatus(
-              car!.id, 
+              car.id, 
               true,
               userId: currentUser.id.toString(),
             );
@@ -61,7 +61,7 @@ class CarDetailPage extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${car!.brand} ${car!.model} dijadikan mobil utama'),
+              content: Text('${car.brand} ${car.model} dijadikan mobil utama'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -84,7 +84,7 @@ class CarDetailPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: car == null ? null : () {
+            onPressed: () {
               context.pushNamed('car-edit', pathParameters: {'id': car!.id});
             },
           ),
@@ -128,30 +128,6 @@ class CarDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _showDeleteConfirmation(
       BuildContext context, WidgetRef ref, String carId, bool isMain) async {

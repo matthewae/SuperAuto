@@ -4,7 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:device_info_plus/device_info_plus.dart';
+
 import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
@@ -13,7 +13,7 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
-  final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();  // Changed back to DeviceInfoPlugin
+
 
   
 
@@ -47,13 +47,6 @@ class NotificationService {
       return result.isGranted;
     }
     return status.isGranted;
-  }
-  Future<bool> _hasExactAlarmPermission() async {
-    if (Platform.isAndroid) {
-      final androidInfo = await _deviceInfo.androidInfo;
-      return androidInfo.version.sdkInt < 31; // Return true for Android < 12
-    }
-    return true;
   }
 
   Future<void> scheduleServiceReminder({

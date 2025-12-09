@@ -219,7 +219,62 @@ final productsProvider = StateNotifierProvider<ProductNotifier, List<Product>>((
 class ProductNotifier extends StateNotifier<List<Product>> {
   final ProductDao _dao;
 
-  ProductNotifier(this._dao) : super([]) {
+  ProductNotifier(this._dao) : super([
+    Product(
+      id: _uuid.v4(),
+      name: 'Ban Michelin Primacy 4',
+      category: ProductCategory.tiresWheels,
+      description: 'Ban touring premium dengan performa pengereman basah dan kering yang sangat baik.',
+      price: 1200000,
+      compatibleModels: ['Sedan', 'MPV'],
+      imageUrl: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=Ban+Michelin',
+    ),
+    Product(
+      id: _uuid.v4(),
+      name: 'Oli Mesin Castrol EDGE',
+      category: ProductCategory.fluids,
+      description: 'Oli mesin full sintetis untuk performa maksimal dan perlindungan mesin.',
+      price: 150000,
+      compatibleModels: ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Oli+Castrol',
+    ),
+    Product(
+      id: _uuid.v4(),
+      name: 'Filter Udara K&N',
+      category: ProductCategory.accessories,
+      description: 'Filter udara performa tinggi yang dapat dicuci dan digunakan kembali.',
+      price: 750000,
+      compatibleModels: ['Sport', 'SUV'],
+      imageUrl: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Filter+K%26N',
+    ),
+    Product(
+      id: _uuid.v4(),
+      name: 'Klakson Hella Black Twin Tone',
+      category: ProductCategory.accessories,
+      description: 'Klakson mobil Hella Black Twin Tone, suara nyaring dan elegan.',
+      price: 250000,
+      compatibleModels: ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/000000/FFFFFF?text=Klakson+Hella',
+    ),
+    Product(
+      id: _uuid.v4(),
+      name: 'Lampu LED Philips Ultinon Essential',
+      category: ProductCategory.electronics,
+      description: 'Lampu depan LED Philips Ultinon Essential, terang dan tahan lama.',
+      price: 600000,
+      compatibleModels: ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/FFFF00/000000?text=Lampu+LED+Philips',
+    ),
+    Product(
+      id: _uuid.v4(),
+      name: 'Kamera Mundur Universal',
+      category: ProductCategory.electronics,
+      description: 'Kamera mundur universal dengan tampilan jernih untuk keamanan parkir.',
+      price: 350000,
+      compatibleModels: ['Semua Model'],
+      imageUrl: 'https://via.placeholder.com/150/808080/FFFFFF?text=Kamera+Mundur',
+    ),
+  ]) {
     _loadProducts();
   }
 
