@@ -9,17 +9,20 @@ import '../models/product.dart';
 import '../models/cart.dart';
 import '../models/order.dart';
 import '../models/service_booking.dart';
-import '../models/service_history.dart';
 import '../models/bundling.dart';
 import '../models/promo.dart';
 import '../models/loyalty_points.dart';
 import '../models/enums.dart';
+import '../models/cart.dart';
 import '../services/auth_service.dart';
 import '../data/dao/product_dao.dart';
 import '../data/dao/car_dao.dart';
 import '../data/dao/user_dao.dart';
 import '../data/dao/service_booking_dao.dart';
 import '../data/db/app_database.dart';
+import '../data/dao/order_dao.dart';
+import '../data/dao/cart_dao.dart';
+
 
 
 const _uuid = Uuid();
@@ -337,80 +340,205 @@ class ProductNotifier extends StateNotifier<List<Product>> {
     }
   }
 }
-// Cart
-final cartProvider = StateNotifierProvider<CartNotifier, Cart>((ref) {
-  return CartNotifier();
+// Cart Provider
+final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
+  return CartNotifier(ref);
 });
 
-class CartNotifier extends StateNotifier<Cart> {
-  CartNotifier() : super(const Cart());
+class CartNotifier extends StateNotifier<CartState> {
+  final Ref ref;
+  late final CartDao _dao = CartDao.instance;
 
-  void addItem({
+  CartNotifier(this.ref) : super(const CartState()) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    await loadCart();
+
+    // Listen to auth changes to update cart when user logs in/out
+    ref.listen<AsyncValue<User?>>(
+      authProvider,
+          (_, next) => loadCart(),
+    );
+  }
+
+  String get _userId => ref.read(authProvider).value?.id ?? 'guest';
+
+  Future<void> loadCart() async {
+    try {
+      final cart = await _dao.getCart(_userId);
+      // Convert Cart to CartState
+      state = CartState(
+        items: cart.items,
+        // Add other properties if needed
+      );
+    } catch (e) {
+      print('Error loading cart: $e');
+      state = const CartState(); // Reset to empty cart on error
+    }
+  }
+
+  Future<void> addItem({
     required String productId,
     required String productName,
     required double price,
     int quantity = 1,
     String? imageUrl,
-  }) {
-    final existingIndex = state.items.indexWhere((item) => item.productId == productId);
-
-    if (existingIndex >= 0) {
-      final existingItem = state.items[existingIndex];
-      final updatedItems = List<CartItem>.from(state.items);
-      updatedItems[existingIndex] = existingItem.copyWith(
-        quantity: existingItem.quantity + quantity,
-      );
-      state = state.copyWith(items: updatedItems);
-    } else {
-      final newItem = CartItem(
+  }) async {
+    try {
+      final item = CartItem(
         productId: productId,
         productName: productName,
         price: price,
         quantity: quantity,
+        userId: _userId,
         imageUrl: imageUrl,
+        createdAt: DateTime.now(),
       );
-      state = state.copyWith(items: [...state.items, newItem]);
+
+      await _dao.upsertItem(item);
+      await loadCart(); // Reload cart to ensure consistency
+    } catch (e) {
+      print('Error adding item to cart: $e');
+      rethrow;
     }
   }
 
-  void updateQuantity(String productId, int newQuantity) {
-    if (newQuantity <= 0) {
-      removeItem(productId);
-      return;
+  Future<void> updateItemQuantity(String productId, int newQuantity) async {
+    try {
+      if (newQuantity <= 0) {
+        await removeItem(productId);
+        return;
+      }
+
+      await _dao.updateItemQuantity(
+        userId: _userId,
+        productId: productId,
+        newQuantity: newQuantity,
+      );
+      await loadCart();
+    } catch (e) {
+      print('Error updating item quantity: $e');
+      rethrow;
     }
+  }
 
-    final index = state.items.indexWhere((item) => item.productId == productId);
-    if (index >= 0) {
-      final updatedItems = List<CartItem>.from(state.items);
-      updatedItems[index] = updatedItems[index].copyWith(quantity: newQuantity);
-      state = state.copyWith(items: updatedItems);
+  Future<void> removeItem(String productId) async {
+    try {
+      await _dao.deleteItem(_userId, productId);
+      await loadCart();
+    } catch (e) {
+      print('Error removing item from cart: $e');
+      rethrow;
     }
   }
 
-  void removeItem(String productId) {
-    state = state.copyWith(
-      items: state.items.where((item) => item.productId != productId).toList(),
-    );
+  Future<void> clear() async {
+    try {
+      await _dao.clearCart(_userId);
+      state = const CartState();
+    } catch (e) {
+      print('Error clearing cart: $e');
+      rethrow;
+    }
   }
 
-  void clear() {
-    state = const Cart();
+  Future<void> applyPromo(String? promoId, {double discount = 0.0}) async {
+    try {
+      state = state.copyWith(
+        appliedPromoId: promoId,
+        discount: discount,
+      );
+    } catch (e) {
+      print('Error applying promo: $e');
+      rethrow;
+    }
   }
 
-  void applyPromo(String? promoId) {
-    state = state.copyWith(appliedPromoId: promoId);
+  Future<void> setDeliveryFee(double fee) async {
+    try {
+      state = state.copyWith(deliveryFee: fee);
+    } catch (e) {
+      print('Error setting delivery fee: $e');
+      rethrow;
+    }
   }
+
+  // Helper getters
+  double get subtotal => state.subtotal;
+  double get total => state.total;
+  int get itemCount => state.itemCount;
+  List<CartItem> get items => state.items;
 }
-
 // Orders
-final ordersProvider = StateNotifierProvider<OrdersNotifier, List<Order>>((ref) {
-  return OrdersNotifier();
-});
-
 class OrdersNotifier extends StateNotifier<List<Order>> {
-  OrdersNotifier() : super(const []);
-  void add(Order order) => state = [...state, order];
+  OrdersNotifier(this.ref) : super(const []) {
+    _loadOrders();
+  }
+
+  final Ref ref;
+  final OrderDao _orderDao = OrderDao();
+
+  Future<void> _loadOrders() async {
+    try {
+      final user = ref.read(authProvider).valueOrNull;
+      if (user == null) {
+        state = [];
+        return;
+      }
+      
+      final orders = await _orderDao.getByUserId(user.id!);
+      state = orders;
+    } catch (e) {
+      print('Error loading orders: $e');
+      // Re-throw to allow error handling in the UI if needed
+      rethrow;
+    }
+  }
+
+  Future<void> createOrder(Order order) async {
+    try {
+      await _orderDao.insert(order);
+      state = [order, ...state];
+    } catch (e) {
+      print('Error creating order: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateOrder(Order order) async {
+    try {
+      await _orderDao.update(order);
+      state = state.map((o) => o.id == order.id ? order : o).toList();
+    } catch (e) {
+      print('Error updating order: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> cancelOrder(String orderId) async {
+    try {
+      final index = state.indexWhere((o) => o.id == orderId);
+      if (index == -1) return;
+
+      final updated = state[index].copyWith(status: 'cancelled');
+      await _orderDao.update(updated);
+
+      final newState = [...state];
+      newState[index] = updated;
+      state = newState;
+    } catch (e) {
+      print('Error cancelling order: $e');
+      rethrow;
+    }
+  }
 }
+
+final ordersProvider = StateNotifierProvider<OrdersNotifier, List<Order>>(
+  (ref) => OrdersNotifier(ref),
+);
+
 
 // Bookings
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
@@ -659,122 +787,4 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 // Loyalty
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);
 
-// History Completed Service
-// final serviceHistoryDaoProvider = Provider<ServiceHistoryDao>((ref) {
-//   final db = ref.watch(databaseProvider);
-//   return ServiceHistoryDao(db);
-// });
-//
-// final historyServiceProvider = Provider<HistoryService>((ref) {
-//   final dao = ref.watch(serviceHistoryDaoProvider);
-//   return HistoryService(dao);
-// });
-//
-// // Add this provider for the history page
-// final userHistoryProvider = FutureProvider.autoDispose.family<List<ServiceHistoryItem>, String>((ref, userId) async {
-//   final historyService = ref.watch(historyServiceProvider);
-//   return await historyService.getUserHistory(userId);
-// });
-
-// final mainCarIdProvider = StateNotifierProvider<MainCarNotifier, String>((ref) {
-//   final notifier = MainCarNotifier(ref: ref);
-//
-//   // Dengarkan perubahan auth
-//   ref.listen<AsyncValue<User?>>(authProvider, (_, next) {
-//     final user = next.value;
-//     if (user != null) {
-//       notifier._updateCurrentUser(user);
-//     }
-//   });
-//
-//   return notifier;
-// });
-
-// class MainCarNotifier extends StateNotifier<String> {
-//   MainCarNotifier({required this.ref}) : super('') {
-//     _init();
-//   }
-//
-//   final Ref ref;
-//   String? _currentUserId;
-//   SharedPreferences? _prefs;
-//   bool _isInitialized = false;
-//
-//   Future<void> _init() async {
-//     if (_isInitialized) return;
-//     try {
-//       _prefs = await SharedPreferences.getInstance();
-//       final currentUser = ref.read(authProvider).value;
-//       if (currentUser != null) {
-//         _currentUserId = currentUser.idString;
-//         await _loadMainCarId();
-//       }
-//       _isInitialized = true;
-//     } catch (e) {
-//       print('Error initializing MainCarNotifier: $e');
-//       _isInitialized = true;
-//     }
-//   }
-//
-//   Future<void> _updateCurrentUser(User? user) async {
-//     final newUserId = user?.idString;
-//     if (newUserId != _currentUserId) {
-//       _currentUserId = newUserId;
-//       if (_currentUserId != null) {
-//         await _loadMainCarId();
-//       } else {
-//         state = ''; // Pengguna logout, hapus state
-//       }
-//     }
-//   }
-//
-//   Future<void> _loadMainCarId() async {
-//     if (_currentUserId == null || _prefs == null) {
-//       state = '';
-//       return;
-//     }
-//
-//     try {
-//       // Key tetap 'main_car_[userId]'
-//       final mainCarId = _prefs!.getString('main_car_$_currentUserId');
-//       if (mainCarId != null && mainCarId.isNotEmpty) {
-//         state = mainCarId;
-//       } else {
-//         state = '';
-//       }
-//     } catch (e) {
-//       print('Error loading main car ID: $e');
-//       state = '';
-//     }
-//   }
-//
-//   // INI ADALAH FUNGSI YANG SUDAH DIPERBAIKI
-//   Future<void> setMainCarId(String userId, String carId) async {
-//     if (_prefs == null) return;
-//
-//     try {
-//       // HANYA HAPUS MOBIL UTAMA LAMA UNTUK PENGGUNA YANG SAMA (userId)
-//       // Ini mencegah bug di mana mobil utama user lain terhapus.
-//       final oldMainCarId = _prefs!.getString('main_car_$userId');
-//       if (oldMainCarId != null) {
-//         print('Menghapus mobil utama lama untuk user $userId: $oldMainCarId');
-//         await _prefs!.remove('main_car_$userId');
-//       }
-//
-//       // Tetapkan mobil utama baru untuk pengguna ini
-//       await _prefs!.setString('main_car_$userId', carId);
-//       print('Menetapkan mobil utama baru untuk user $userId: $carId');
-//
-//       // Perbarui state jika ini untuk pengguna saat ini
-//       if (userId == _currentUserId) {
-//         print('Memperbarui state untuk pengguna saat ini ($userId) dengan mobil utama: $carId');
-//         state = carId;
-//       }
-//     } catch (e) {
-//       print('Error setting main car: $e');
-//       rethrow;
-//     }
-//   }
-// }
-//
 

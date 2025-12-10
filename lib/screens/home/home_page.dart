@@ -220,7 +220,7 @@ class HomePage extends StatelessWidget {
               children: [
                 _buildActionButton(
                   context: context,
-                  text: 'Riwayat Service',
+                  text: 'Service sedang berlangsung',
                   icon: Icons.history,
                   onTap: () => context.push('/bookings'),
                 ),

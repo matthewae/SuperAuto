@@ -7,7 +7,7 @@ class Car {
   final String vin;
   final String engineNumber;
   final int initialKm;
-  final int userId;
+  final String userId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isMain;
@@ -46,17 +46,6 @@ class Car {
   }
 
   factory Car.fromMap(Map<String, dynamic> map) {
-    // Helper function to safely parse userId
-    int parseUserId(dynamic value) {
-      if (value == null) throw Exception('User ID cannot be null');
-      if (value is int) return value;
-      if (value is String) {
-        final parsed = int.tryParse(value);
-        if (parsed != null) return parsed;
-      }
-      throw Exception('Invalid user ID format: $value');
-    }
-
     return Car(
       id: map['id'] as String,
       brand: map['brand'] as String,
@@ -66,7 +55,7 @@ class Car {
       vin: map['vin'] as String,
       engineNumber: map['engineNumber'] as String,
       initialKm: map['initialKm'] as int,
-      userId: parseUserId(map['userId']),
+      userId: map['userId'] as String,
       isMain: (map['isMain'] as int? ?? 0) == 1,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
@@ -86,7 +75,7 @@ class Car {
     String? vin,
     String? engineNumber,
     int? initialKm,
-    int? userId,
+    String? userId,
     bool? isMain,
     DateTime? createdAt,
     DateTime? updatedAt,

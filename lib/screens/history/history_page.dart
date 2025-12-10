@@ -221,6 +221,8 @@ class HistoryPage extends ConsumerWidget {
     switch (filter) {
       case BookingFilter.all:
         return 'Semua';
+      case BookingFilter.active:
+        return 'Aktif';
       case BookingFilter.completed:
         return 'Selesai';
       case BookingFilter.cancelled:

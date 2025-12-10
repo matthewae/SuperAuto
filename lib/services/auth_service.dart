@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
+import 'package:uuid/uuid.dart';
 
 class AuthService {
   final UserDao _userDao;
@@ -28,6 +29,7 @@ class AuthService {
 
         await _userDao.insertUser(
           User(
+            id: const Uuid().v4(),
             email: "admin@superauto.com",
             password: "admin",
             name: "Super Admin",
@@ -79,6 +81,7 @@ class AuthService {
 
     final isAdmin = email.toLowerCase() == "admin@superauto.com";
     final newUser = User(
+      id: const Uuid().v4(),
       email: email,
       password: password,
       name: name,

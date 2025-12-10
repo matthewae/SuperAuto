@@ -8,14 +8,21 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     _loadThemeMode();
   }
 
+  static const String _key = 'themeMode';
+
   Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeModeString = prefs.getString('themeMode');
-    if (themeModeString == 'dark') {
-      state = ThemeMode.dark;
-    } else if (themeModeString == 'light') {
-      state = ThemeMode.light;
-    } else {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final themeModeString = prefs.getString(_key);
+      if (themeModeString == 'dark') {
+        state = ThemeMode.dark;
+      } else if (themeModeString == 'light') {
+        state = ThemeMode.light;
+      } else {
+        state = ThemeMode.system;
+      }
+    } catch (e) {
+      // Fallback to system theme if there's an error
       state = ThemeMode.system;
     }
   }

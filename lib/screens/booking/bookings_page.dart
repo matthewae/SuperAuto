@@ -1,78 +1,134 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import 'booking_detail_page.dart';
 import '../../models/service_booking.dart';
+import '../../models/enums.dart' show BookingFilter;
 
-class BookingsPage extends ConsumerWidget {
+class BookingsPage extends ConsumerStatefulWidget {
   const BookingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ Gunakan userBookingsProviderAlt yang sudah di-filter per user
+  ConsumerState<BookingsPage> createState() => _BookingsPageState();
+}
+
+class _BookingsPageState extends ConsumerState<BookingsPage> {
+  BookingFilter currentFilter = BookingFilter.active;
+
+  @override
+  Widget build(BuildContext context) {
     final bookingsState = ref.watch(userBookingsProviderAlt);
-    final currentUser = ref.watch(authProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Daftar Booking'),
-      ),
-      body: bookingsState.when(
-        data: (bookings) {
-          debugPrint('📋 BookingsPage: Showing ${bookings.length} bookings for user ${currentUser?.id}');
-          return _buildBookingsList(context, bookings, ref);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) {
-          debugPrint('❌ BookingsPage Error: $error');
-          return Center(child: Text('Error: $error'));
-        },
+      appBar: AppBar(title: const Text("Daftar Booking")),
+      body: Column(
+        children: [
+          _buildFilterChips(),
+          Expanded(
+            child: bookingsState.when(
+              data: (bookings) {
+                final filtered = _applyFilter(bookings);
+                if (filtered.isEmpty) {
+                  return const Center(child: Text("Tidak ada data"));
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final booking = filtered[index];
+                    final isActive = booking.status != "completed" &&
+                        booking.status != "cancelled";
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        title: Text(
+                          '${_formatServiceType(booking.serviceType)} - ${_formatDate(booking.scheduledAt)}',
+                        ),
+                        subtitle: Text(_getStatusText(booking.status)),
+                        trailing:
+                        isActive ? const Icon(Icons.chevron_right) : null,
+                        onTap: isActive
+                            ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookingDetailPage(
+                                bookingId: booking.id),
+                          ),
+                        )
+                            : null, // non aktif untuk selesai/batal
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () =>
+              const Center(child: CircularProgressIndicator()),
+              error: (err, _) =>
+                  Center(child: Text("Error: $err")),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBookingsList(
-      BuildContext context, List<ServiceBooking> bookings, WidgetRef ref) {
-    // Filter out completed and cancelled bookings
-    final activeBookings = bookings.where((booking) =>
-    booking.status != 'completed' &&
-        booking.status != 'cancelled' &&
-        booking.status != 'ready_for_pickup' // Exclude ready for pickup as per your requirement
-    ).toList();
+  // -----------------------------------------
+  // FILTER UI
+  // -----------------------------------------
+  Widget _buildFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          _chip("Aktif", BookingFilter.active),
+          const SizedBox(width: 8),
+          _chip("Selesai", BookingFilter.completed),
+          const SizedBox(width: 8),
+          _chip("Dibatalkan", BookingFilter.cancelled),
+        ],
+      ),
+    );
+  }
 
-    if (activeBookings.isEmpty) {
-      return const Center(
-        child: Text('Tidak ada booking aktif saat ini'),
-      );
-    }
+  Widget _chip(String label, BookingFilter filter) {
+    final selected = currentFilter == filter;
 
-    return ListView.builder(
-      itemCount: activeBookings.length,
-      itemBuilder: (context, index) {
-        final booking = activeBookings[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ListTile(
-            title: Text(
-              '${_formatServiceType(booking.serviceType)} - ${_formatDate(booking.scheduledAt)}',
-            ),
-            subtitle: Text(_getStatusText(booking.status)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      BookingDetailPage(bookingId: booking.id),
-                ),
-              );
-            },
-          ),
-        );
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) {
+        setState(() => currentFilter = filter);
       },
     );
   }
+
+  // -----------------------------------------
+  // FILTER LOGIC
+  // -----------------------------------------
+  List<ServiceBooking> _applyFilter(List<ServiceBooking> bookings) {
+    switch (currentFilter) {
+      case BookingFilter.active:
+        return bookings.where((b) =>
+        b.status != "completed" &&
+            b.status != "cancelled"
+        ).toList();
+
+      case BookingFilter.completed:
+        return bookings.where((b) => b.status == "completed").toList();
+
+      case BookingFilter.cancelled:
+        return bookings.where((b) => b.status == "cancelled").toList();
+
+      default:
+        return bookings;
+    }
+  }
+
+  // -----------------------------------------
+  // UTIL FUNCTIONS
+  // -----------------------------------------
 
   String _formatServiceType(String type) {
     switch (type) {
@@ -88,7 +144,8 @@ class BookingsPage extends ConsumerWidget {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   String _getStatusText(String status) {

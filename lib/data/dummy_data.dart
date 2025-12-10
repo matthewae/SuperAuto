@@ -4,7 +4,6 @@ import '../models/product.dart';
 import '../models/enums.dart';
 import '../models/bundling.dart';
 import '../models/promo.dart';
-import '../models/service_history.dart';
 import '../providers/app_providers.dart';
 
 import '../data/dao/product_dao.dart';

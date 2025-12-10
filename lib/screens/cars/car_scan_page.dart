@@ -43,7 +43,7 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
 
       final car = Car(
         id: _uuid.v4(),
-        userId: currentUser.id!,
+        userId: currentUser.id,
         brand: data['brand'] ?? 'Unknown',
         model: data['model'] ?? 'Unknown',
         year: (data['year'] ?? 0) is int ? data['year'] : int.tryParse('${data['year']}') ?? 0,

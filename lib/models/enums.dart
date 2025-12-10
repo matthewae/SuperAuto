@@ -20,6 +20,7 @@ extension ServiceStatusExt on ServiceStatus {
 
 enum BookingFilter {
   all,
+  active,
   completed,
   cancelled,
 }

@@ -59,8 +59,8 @@ class _MainShellState extends State<MainShell> {
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.store_outlined),
-                    selectedIcon: Icon(Icons.store),
-                    label: 'Katalog',
+                    selectedIcon: Icon(Icons.shopping_cart),
+                    label: 'Cart',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.person_outline),
@@ -85,7 +85,7 @@ class _MainShellState extends State<MainShell> {
         GoRouter.of(context).go('/history');
         break;
       case 2:
-        GoRouter.of(context).go('/catalog');
+        GoRouter.of(context).go('/cart');
         break;
       case 3:
         GoRouter.of(context).push('/profile');

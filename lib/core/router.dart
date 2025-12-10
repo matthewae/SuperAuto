@@ -27,6 +27,12 @@ import '../screens/profile/edit_profile_page.dart';
 import '../widgets/main_shell.dart';
 import '../screens/booking/bookings_page.dart';
 import '../screens/cars/car_edit_page.dart';
+import '../screens/checkout/order_confirmation_page.dart';
+import '../screens/admin/admin_orders.dart';
+import '../screens/admin/admin_order_detail.dart';
+import '../screens/history/order_detail_page.dart';
+import '../providers/app_providers.dart';
+
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -52,7 +58,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'admindashboard',
         builder: (_, __) => const AdminDashboard()),
       GoRoute(
-          path: '/admin',
+          path: '/admin/products',
           name: 'adminproduct',
           builder: (_, __) => const AdminProducts()),
       ShellRoute(
@@ -122,11 +128,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TrackingPage(),
       ),
       GoRoute(
-        path: '/history',
-        name: 'history',
-        builder: (context, state) => const HistoryPage(),
-      ),
-      GoRoute(
         path: '/product/:id',
         name: 'product-detail',
         builder: (context, state) => ProductDetailPage(productId: state.pathParameters['id']!),
@@ -142,6 +143,54 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CheckoutPage(),
       ),
       GoRoute(
+        path: '/order-confirmation',
+        name: 'order-confirmation',
+        builder: (context, state) {
+          final orderId = state.extra as String? ?? '';
+          return OrderConfirmationPage(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/admin/orders',
+        name: 'admin-orders',
+        builder: (context, state) => const AdminOrdersPage(),
+      ),
+      GoRoute(
+        path: '/order-history',
+        name: 'order-history',
+        builder: (context, state) => const OrderHistoryPage(),
+      ),
+
+      GoRoute(
+        path: '/order-detail/:id',
+        name: 'order-detail',
+        builder: (context, state) {
+          final orderId = state.pathParameters['id']!;
+
+          // akses orders dari provider
+          final container = ProviderScope.containerOf(context);
+          final orders = container.read(ordersProvider);
+
+          final order = orders.firstWhere(
+                (o) => o.id == orderId,
+            orElse: () => throw Exception('Order tidak ditemukan'),
+          );
+
+          return OrderDetailPage(order: order);
+        },
+      ),
+
+
+      // GoRoute(
+      //   path: '/admin/orders/:id',
+      //   name: 'admin-order-detail',
+      //   builder: (context, state) {
+      //     final orderId = state.pathParameters['id']!;
+      //     // You'll need to create an OrderDetailPage to show order details
+      //     return OrderDetailPage(orderId: orderId);
+      //   },
+      // ),
+      GoRoute(
         path: '/bundling',
         name: 'bundling',
         builder: (context, state) => const BundlingPage(),
@@ -155,11 +204,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/loyalty',
         name: 'loyalty',
         builder: (context, state) => const LoyaltyPage(),
-      ),
-      GoRoute(
-        path: '/order-history',
-        name: 'order-history',
-        builder: (context, state) => const OrderHistoryPage(),
       ),
       GoRoute(
         path: '/edit-profile',

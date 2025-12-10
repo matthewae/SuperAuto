@@ -15,13 +15,15 @@ class CartPage extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 150,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Keranjang Belanja'),
-              background: Container(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
+              },
             ),
           ),
           SliverList(
@@ -118,10 +120,19 @@ class CartPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   GFButton(
-                    onPressed: () => context.push('/checkout'),
+                    onPressed: () {
+                      if (cart.items.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Keranjang belanja kosong')),
+                        );
+                        return;
+                      }
+                      context.go('/checkout');  // Changed from Navigator.pushNamed
+                    },
                     text: 'Checkout',
                     blockButton: true,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).primaryColor,
+                    textColor: Colors.white,
                   ),
                 ],
               ),

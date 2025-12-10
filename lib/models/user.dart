@@ -1,12 +1,12 @@
 class User {
-  final int? id;
+  final String id;
   final String email;
   final String password;
   final String name;
   final String role;
 
   User({
-    this.id,
+    required this.id,
     required this.email,
     required this.password,
     required this.name,
@@ -27,7 +27,7 @@ class User {
   // Dari database ke object
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
-      id: map['id'] as int?,
+      id: map['id'] as String,
       email: map['email'] as String,
       password: map['password'] as String,
       name: map['name'] as String,

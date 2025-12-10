@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../dao/cart_dao.dart';
 
 class AppDatabase {
 
@@ -26,6 +27,7 @@ class AppDatabase {
   }
 
   Future _createDB(Database db, int version) async {
+
     await db.execute('''
      CREATE TABLE IF NOT EXISTS cars (
   id TEXT PRIMARY KEY,
@@ -36,7 +38,7 @@ class AppDatabase {
   vin TEXT NOT NULL,
   engineNumber TEXT NOT NULL,
   initialKm INTEGER NOT NULL,
-  userId INTEGER NOT NULL,
+  userId TEXT NOT NULL,
   isMain INTEGER NOT NULL DEFAULT 0,
   createdAt TEXT,
   updatedAt TEXT,
@@ -46,7 +48,7 @@ class AppDatabase {
 
     await db.execute('''
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -65,15 +67,6 @@ class AppDatabase {
       imageUrl TEXT,
       compatibleModels TEXT
     );
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        userId TEXT,
-        productId TEXT,
-        createdAt TEXT
-      );
     ''');
 
     await db.execute('''
@@ -130,11 +123,47 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS cart (
-        id TEXT PRIMARY KEY,
-        productId TEXT,
-        qty INTEGER
-      );
-    ''');
+  CREATE TABLE IF NOT EXISTS cart_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT NOT NULL,
+    productId TEXT NOT NULL,
+    productName TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    price REAL NOT NULL,
+    imageUrl TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT,
+    UNIQUE(userId, productId)
+  )
+''');
+    await db.execute('''
+  CREATE TABLE IF NOT EXISTS order_items (
+  id TEXT PRIMARY KEY,
+  orderId TEXT NOT NULL,
+  productId TEXT NOT NULL,
+  productName TEXT NOT NULL,
+  price REAL NOT NULL,
+  quantity INTEGER NOT NULL,
+  imageUrl TEXT,
+  FOREIGN KEY (orderId) REFERENCES orders (id) ON DELETE CASCADE,
+  FOREIGN KEY (productId) REFERENCES products (id) ON DELETE CASCADE
+  )
+''');
+
+    await db.execute('''
+  CREATE TABLE IF NOT EXISTS orders (
+     id TEXT PRIMARY KEY,
+     userId TEXT NOT NULL,
+     total REAL NOT NULL,
+     status TEXT NOT NULL,
+     trackingNumber TEXT,
+     shippingMethod TEXT,
+     shippingAddress TEXT,
+     paymentMethod TEXT,
+     createdAt TEXT NOT NULL,
+     updatedAt TEXT,
+     FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+  )
+''');
   }
 }

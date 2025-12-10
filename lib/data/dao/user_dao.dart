@@ -7,9 +7,11 @@ class UserDao {
 
   UserDao(this.db);
 
-  Future<int> insertUser(User user) async {
+  // In UserDao class
+  Future<String> insertUser(User user) async {
     final db = await AppDatabase.instance.database;
-    return await db.insert('users', user.toMap());
+    await db.insert('users', user.toMap());
+    return user.id;
   }
 
   Future<User?> login(String email, String password) async {
