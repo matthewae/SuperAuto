@@ -1,4 +1,3 @@
-// In checkout_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
@@ -65,10 +64,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
       }).toList();
 
-      // Create order with items
+      // Create order with items - TAMBAHKAN userName DI SINI
       final order = Order(
         id: orderId,
         userId: user.id!,
+        userName: user.name, // PASTIKAN BARIS INI ADA
         items: items,
         total: cart.subtotal,
         createdAt: DateTime.now(),
@@ -79,14 +79,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         trackingNumber: null, // admin will fill this later
       );
 
-      // Save the order and its items in a transaction
+      // Save to order and its items in a transaction
       final orderDao = OrderDao();
       await orderDao.insert(order);
-      
-      // Clear the cart
+
+      // Clear cart
       ref.read(cartProvider.notifier).clear();
-      
-      // Update the orders list in the provider
+
+      // Update orders list in provider
       if (ref.read(ordersProvider.notifier) is AsyncNotifier) {
         await (ref.read(ordersProvider.notifier) as dynamic).refresh();
       }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'admin_product.dart';
-import 'admin_orders.dart';
 import 'admin_booking.dart';
 import 'admin_history.dart';
 import 'admin_profile.dart';
-
+import 'admin_order_list_page.dart';
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -15,9 +14,9 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = 0;
 
-  final screens = const [
+  final List<Widget> screens = [
     AdminProducts(),
-    AdminOrdersPage(),
+    AdminOrderListPage(),
     AdminBookingPage(),
     AdminHistoryPage(),
     AdminProfilePage(),

@@ -23,10 +23,7 @@ import '../data/db/app_database.dart';
 import '../data/dao/order_dao.dart';
 import '../data/dao/cart_dao.dart';
 
-
-
 const _uuid = Uuid();
-
 
 final userBookingsProviderAlt = FutureProvider.autoDispose<List<ServiceBooking>>((ref) async {
   final user = ref.watch(authProvider).valueOrNull;
@@ -42,9 +39,6 @@ final userBookingsProviderAlt = FutureProvider.autoDispose<List<ServiceBooking>>
 
   return await dao.getByUserId(user.idString);
 });
-
-
-
 
 // Core Providers
 final databaseProvider = Provider<Database>((ref) {
@@ -133,8 +127,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
-  // In app_providers.dart, update the AuthNotifier class
-  // In app_providers.dart, update the AuthNotifier class
   Future<void> logout() async {
     try {
       print('Starting logout process...');
@@ -160,6 +152,47 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   );
 
   bool get isInitialized => _isInitialized;
+
+  Future<void> updateProfile({
+    required String name,
+    required String email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    try {
+      final user = state.when(
+        data: (user) => user,
+        loading: () => null,
+        error: (_, __) => null,
+      );
+
+      if (user == null) {
+        throw Exception('Pengguna tidak login');
+      }
+
+      // Validasi format email yang lebih baik
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(email)) {
+        throw Exception('Format email tidak valid');
+      }
+
+      // Update user data
+      final updatedUser = await _authService.updateProfile(
+        user: user,
+        name: name,
+        email: email,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+
+      // Update state dengan data user baru
+      state = AsyncValue.data(updatedUser);
+    } catch (e, stack) {
+      print('Error updating profile: $e\n$stack');
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
 }
 
 // Cars
@@ -340,6 +373,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
     }
   }
 }
+
 // Cart Provider
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
   return CartNotifier(ref);
@@ -471,6 +505,7 @@ class CartNotifier extends StateNotifier<CartState> {
   int get itemCount => state.itemCount;
   List<CartItem> get items => state.items;
 }
+
 // Orders
 class OrdersNotifier extends StateNotifier<List<Order>> {
   OrdersNotifier(this.ref) : super(const []) {
@@ -487,7 +522,7 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
         state = [];
         return;
       }
-      
+
       final orders = await _orderDao.getByUserId(user.id!);
       state = orders;
     } catch (e) {
@@ -536,9 +571,17 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 }
 
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<Order>>(
-  (ref) => OrdersNotifier(ref),
+      (ref) => OrdersNotifier(ref),
 );
 
+final orderDaoProvider = Provider<OrderDao>((ref) {
+  return OrderDao();
+});
+
+final allOrdersProvider = FutureProvider<List<Order>>((ref) async {
+  final dao = ref.watch(orderDaoProvider);
+  return await dao.getAll();
+});
 
 // Bookings
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
@@ -588,9 +631,7 @@ final historyBookingsProvider = FutureProvider.autoDispose<List<ServiceBooking>>
   }
 });
 
-
 class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
-
   final ServiceBookingDao _dao;
   bool _isInitialized = false;
 
@@ -609,9 +650,11 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       _isInitialized = false;
     }
   }
+
   Future<void> refresh() async {
     await _loadBookings();
   }
+
   Future<void> add(ServiceBooking booking) async {
     try {
       await _dao.insert(booking);
@@ -621,8 +664,6 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       rethrow;
     }
   }
-
-
 
   // Add this method to your BookingsNotifier if it doesn't exist
   Future<void> updateServiceDetails({
@@ -649,6 +690,7 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       rethrow;
     }
   }
+
   Future<void> updateStatus(String id, String status, {String? notes}) async {
     try {
       final booking = state.firstWhere((b) => b.id == id);
@@ -718,6 +760,7 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       rethrow;
     }
   }
+
   Future<void> delete(String id) async {
     try {
       await _dao.delete(id);
@@ -736,6 +779,7 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       return [];
     }
   }
+
   final activeBookingsProvider = FutureProvider.autoDispose
       .family<List<ServiceBooking>, String>((ref, userId) async {
     final bookings = await ref.read(bookingsProvider.notifier).getByUserId(userId);
@@ -743,6 +787,7 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
         .where((b) => b.status != 'completed' && b.status != 'cancelled')
         .toList();
   });
+
   Future<void> update(ServiceBooking booking) async {
     try {
       await _dao.update(booking);
@@ -753,16 +798,6 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     }
   }
 }
-
-// Service History
-// final historyProvider = StateNotifierProvider<HistoryNotifier, List<ServiceHistoryItem>>((ref) {
-//   return HistoryNotifier();
-// });
-//
-// class HistoryNotifier extends StateNotifier<List<ServiceHistoryItem>> {
-//   HistoryNotifier() : super(const []);
-//   void add(ServiceHistoryItem h) => state = [...state, h];
-// }
 
 // Bundlings
 final bundlingsProvider = StateNotifierProvider<BundlingsNotifier, List<Bundling>>((ref) {
@@ -786,5 +821,3 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 
 // Loyalty
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);
-
-

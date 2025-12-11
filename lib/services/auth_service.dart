@@ -22,26 +22,21 @@ class AuthService {
   }
 
   Future<void> _initializeAdmin() async {
-
     try {
       final existingAdmin = await _userDao.getUserByEmail("admin@superauto.com");
       if (existingAdmin == null) {
-
         await _userDao.insertUser(
           User(
             id: const Uuid().v4(),
             email: "admin@superauto.com",
             password: "admin",
             name: "Super Admin",
+            createdAt: DateTime.now(),
             role: "admin",
           ),
         );
-
-      } else {
-
       }
     } catch (e) {
-
       rethrow;
     }
   }
@@ -85,6 +80,7 @@ class AuthService {
       email: email,
       password: password,
       name: name,
+      createdAt: DateTime.now(),
       role: isAdmin ? "admin" : "user",
     );
 
@@ -96,17 +92,21 @@ class AuthService {
 
   Future<User?> login(String email, String password) async {
     try {
-      // Your existing login logic
       final user = await _userDao.getUserByEmail(email);
       if (user != null && user.password == password) {
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_id', user.idString);
+        await prefs.setString('current_user_email', email);
 
         // Refresh bookings if we have a ref
         if (_ref != null) {
           _ref!.read(bookingsProvider.notifier).refresh();
         }
+
+        // Set current user
+        _currentUser = user;
+
         return user;
       }
       return null;
@@ -124,13 +124,66 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_id');
+      await prefs.remove('current_user_email');
 
       // Invalidate providers if we have a ref
       if (_ref != null) {
         _ref!.invalidate(bookingsProvider);
       }
+
+      // Clear current user
+      _currentUser = null;
     } catch (e) {
       print('Logout error: $e');
+      rethrow;
+    }
+  }
+
+  // Tambahkan metode updateProfile
+  Future<User> updateProfile({
+    required User user,
+    required String name,
+    required String email,
+    String? newPassword,
+    String? currentPassword,
+  }) async {
+    try {
+      // Verifikasi password saat ini jika ingin mengubah password
+      if (newPassword != null && currentPassword != null) {
+        final isPasswordValid = await _userDao.verifyPassword(user.id, currentPassword);
+        if (!isPasswordValid) {
+          throw Exception('Password saat ini tidak benar');
+        }
+      }
+
+      // Periksa apakah email sudah digunakan oleh pengguna lain
+      if (email != user.email) {
+        final existingUser = await _userDao.getUserByEmail(email);
+        if (existingUser != null) {
+          throw Exception('Email sudah digunakan oleh pengguna lain');
+        }
+      }
+
+      // Buat objek user yang diperbarui
+      final updatedUser = user.copyWith(
+        name: name,
+        email: email,
+        password: newPassword ?? user.password,
+      );
+
+      // Simpan perubahan ke database
+      await _userDao.updateUser(updatedUser);
+
+      // Update current user
+      _currentUser = updatedUser;
+
+      // Simpan email baru ke SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('current_user_email', email);
+
+      return updatedUser;
+    } catch (e) {
+      debugPrint('Error updating profile: $e');
       rethrow;
     }
   }

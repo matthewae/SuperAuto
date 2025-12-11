@@ -2,6 +2,7 @@
 class Order {
   final String id;
   final String userId;
+  final String? userName;
   final List<OrderItem> items; // hanya untuk keperluan Flutter
   final double total;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class Order {
   const Order({
     required this.id,
     required this.userId,
+    this.userName,
     this.items = const [],
     required this.total,
     required this.createdAt,
@@ -30,6 +32,7 @@ class Order {
     return {
       'id': id,
       'userId': userId,
+      'userName': userName,
       'total': total,
       'status': status,
       'trackingNumber': trackingNumber,
@@ -45,6 +48,7 @@ class Order {
     return Order(
       id: map['id'] as String,
       userId: map['userId'] as String,
+      userName: map['userName'] as String?,
       items: items, // Gunakan items yang diberikan atau default ke list kosong
       total: (map['total'] as num).toDouble(),
       status: map['status'] as String? ?? 'pending',
@@ -60,6 +64,7 @@ class Order {
   Order copyWith({
     String? id,
     String? userId,
+    String? userName,
     List<OrderItem>? items,
     double? total,
     DateTime? createdAt,
@@ -72,6 +77,7 @@ class Order {
     return Order(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
       items: items ?? List.from(this.items), // Buat salinan baru dari daftar items
       total: total ?? this.total,
       createdAt: createdAt ?? this.createdAt,

@@ -1,8 +1,8 @@
 import '../db/app_database.dart';
 import '../../models/user.dart';
 import 'package:sqflite/sqflite.dart';
-class UserDao {
 
+class UserDao {
   final Database db;
 
   UserDao(this.db);
@@ -43,6 +43,7 @@ class UserDao {
 
     return null;
   }
+
   Future<User?> getUserById(String id) async {
     final db = await AppDatabase.instance.database;
     final results = await db.query(
@@ -52,6 +53,37 @@ class UserDao {
     );
     return results.isNotEmpty ? User.fromMap(results.first) : null;
   }
+
+  // Tambahkan metode update untuk memperbarui data pengguna
+  Future<User> updateUser(User user) async {
+    final db = await AppDatabase.instance.database;
+
+    // Buat map baru dengan updatedAt yang diperbarui
+    final userMap = user.toMap();
+    userMap['updatedAt'] = DateTime.now().toIso8601String();
+
+    await db.update(
+      'users',
+      userMap,
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+
+    // Kembalikan user yang sudah diperbarui dengan updatedAt baru
+    return user.copyWith(updatedAt: DateTime.now());
+  }
+
+  // Tambahkan metode untuk verifikasi password
+  Future<bool> verifyPassword(String userId, String password) async {
+    final db = await AppDatabase.instance.database;
+    final results = await db.query(
+      'users',
+      where: 'id = ? AND password = ?',
+      whereArgs: [userId, password],
+    );
+    return results.isNotEmpty;
+  }
+
   Future<void> listAllUsers() async {
     final db = await AppDatabase.instance.database;
     final users = await db.query('users');
@@ -60,5 +92,4 @@ class UserDao {
       print('  - ID: ${user['id']}, Email: ${user['email']}, Name: ${user['name']}');
     }
   }
-
 }

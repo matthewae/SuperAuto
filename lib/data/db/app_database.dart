@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../dao/cart_dao.dart';
 
 class AppDatabase {
 
@@ -47,12 +46,14 @@ class AppDatabase {
     ''');
 
     await db.execute('''
-  CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user'
+    role TEXT NOT NULL DEFAULT 'user',
+    createdAt TEXT,
+    updatedAt TEXT
   )
   ''');
 
@@ -154,6 +155,7 @@ class AppDatabase {
   CREATE TABLE IF NOT EXISTS orders (
      id TEXT PRIMARY KEY,
      userId TEXT NOT NULL,
+     userName TEXT,
      total REAL NOT NULL,
      status TEXT NOT NULL,
      trackingNumber TEXT,

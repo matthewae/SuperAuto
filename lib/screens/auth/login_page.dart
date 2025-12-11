@@ -22,6 +22,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   late final TextEditingController emailController;
   late final TextEditingController passwordController;
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  // Error messages for validation
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void initState() {
@@ -35,6 +40,40 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  // Validasi email
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email tidak boleh kosong';
+    }
+
+    // Regex untuk validasi email
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Format email tidak valid';
+    }
+
+    return null;
+  }
+
+  // Validasi password
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password tidak boleh kosong';
+    }
+
+    return null;
+  }
+
+  // Validasi form sebelum submit
+  bool _validateForm() {
+    setState(() {
+      _emailError = _validateEmail(emailController.text);
+      _passwordError = _validatePassword(passwordController.text);
+    });
+
+    return _emailError == null && _passwordError == null;
   }
 
   @override
@@ -62,17 +101,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       'Selamat datang',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Masuk untuk mulai menggunakan SuperAuto',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     TextField(
@@ -91,7 +130,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         prefixIcon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        errorText: _emailError,
                       ),
+                      onChanged: (value) {
+                        // Clear error when user starts typing
+                        if (_emailError != null) {
+                          setState(() {
+                            _emailError = null;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -121,15 +169,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             });
                           },
                         ),
+                        errorText: _passwordError,
                       ),
                       obscureText: _obscurePassword,
+                      onChanged: (value) {
+                        // Clear error when user starts typing
+                        if (_passwordError != null) {
+                          setState(() {
+                            _passwordError = null;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 24),
                     GFButton(
                       color: Theme.of(context).colorScheme.primary,
                       fullWidthButton: true,
-                      // In login_page.dart, update the onPressed handler:
-                      onPressed: () async {
+                      onPressed: _isLoading ? null : () async {
+                        // Validasi form sebelum submit
+                        if (!_validateForm()) {
+                          return;
+                        }
+
+                        setState(() {
+                          _isLoading = true;
+                        });
+
                         final email = emailController.text;
                         final password = passwordController.text;
 
@@ -172,9 +237,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               SnackBar(content: Text('Login gagal: $e')),
                             );
                           }
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isLoading = false;
+                            });
+                          }
                         }
                       },
-                      child: Text('Masuk', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary)),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text('Masuk', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary)),
                       size: GFSize.LARGE,
                       shape: GFButtonShape.pills,
                     ),
