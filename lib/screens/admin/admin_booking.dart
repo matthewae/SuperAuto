@@ -46,23 +46,26 @@ class AdminBookingPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookings = ref.watch(bookingsProvider);
+    // FILTER: hanya booking aktif
+    final bookings = ref.watch(bookingsProvider).where((b) {
+      final s = b.status.toLowerCase();
+      return s != 'completed' && s != 'cancelled';
+    }).toList();
+
     final notifier = ref.read(bookingsProvider.notifier);
 
     void _updateStatus(String id, String status) async {
-      final booking = ref.read(bookingsProvider.notifier).state.firstWhere(
+      final booking = notifier.state.firstWhere(
             (b) => b.id == id,
-        orElse: () => throw Exception('Booking not found'),
       );
 
       if (status == 'completed') {
-        // Show the completion dialog
         await showDialog(
           context: context,
           builder: (context) => CompleteServiceDialog(
             booking: booking,
             onComplete: (id, jobs, parts, km, totalCost) async {
-              await ref.read(bookingsProvider.notifier).updateServiceDetails(
+              await notifier.updateServiceDetails(
                 id: id,
                 jobs: jobs,
                 parts: parts,
@@ -70,7 +73,7 @@ class AdminBookingPage extends ConsumerWidget {
                 totalCost: totalCost,
                 notes: 'Servis selesai',
               );
-              await ref.read(bookingsProvider.notifier).updateStatus(
+              await notifier.updateStatus(
                 id,
                 'completed',
                 notes: 'Servis selesai',
@@ -79,7 +82,6 @@ class AdminBookingPage extends ConsumerWidget {
           ),
         );
       } else {
-        // For other statuses, show the status update dialog
         _showStatusUpdateDialog(context, notifier, id, status);
       }
     }
@@ -90,14 +92,14 @@ class AdminBookingPage extends ConsumerWidget {
         centerTitle: true,
       ),
       body: bookings.isEmpty
-          ? const Center(child: Text('Tidak ada data booking'))
+          ? const Center(child: Text('Tidak ada booking aktif'))
           : ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: bookings.length,
           itemBuilder: (context, index) {
             final booking = bookings[index];
-            final formattedDate = DateFormat('dd MMM yyyy HH:mm').format(
-                booking.scheduledAt);
+            final formattedDate = DateFormat('dd MMM yyyy HH:mm')
+                .format(booking.scheduledAt);
 
             return FutureBuilder<Map<String, dynamic>>(
               future: _getUserAndCarDetails(
@@ -116,7 +118,6 @@ class AdminBookingPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Existing booking ID and status
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -159,16 +160,11 @@ class AdminBookingPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 12),
-
-                        // User and Car Info
                         _buildInfoRow('Nama', details['userName']),
-                        _buildInfoRow('No. HP', details['userPhone']),
+                        _buildInfoRow('E-Mail', details['email']),
                         _buildInfoRow('Mobil', details['carInfo']),
                         const Divider(height: 20),
-
-                        // Booking Details
                         _buildInfoRow('Layanan', booking.serviceType),
                         _buildInfoRow('Bengkel', booking.workshop),
                         _buildInfoRow('Tanggal', formattedDate),
@@ -176,47 +172,27 @@ class AdminBookingPage extends ConsumerWidget {
                             'Perkiraan Biaya',
                             'Rp${booking.estimatedCost.toStringAsFixed(0)}'
                         ),
-
-                        if (booking.notes?.isNotEmpty ?? false)
-                          _buildInfoRow('Catatan', booking.notes,
-                              isMultiline: true),
-
-                        if (booking.adminNotes?.isNotEmpty ?? false)
-                          _buildInfoRow('Catatan Admin', booking.adminNotes,
-                              isMultiline: true),
+                        if (booking.notes?.isNotEmpty ?? false) ...[
+                          const SizedBox(height: 4),
+                          _buildInfoRow(
+                            'Catatan',
+                            booking.notes!,
+                            isMultiline: true,
+                          ),
+                        ],
 
                         const SizedBox(height: 12),
 
-                        // Action Buttons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            if (booking.status == 'pending') ...[
-                              GFButton(
-                                onPressed: () =>
-                                    _updateStatus(booking.id, 'confirmed'),
-                                text: 'Konfirmasi',
-                                color: GFColors.SUCCESS,
-                                size: GFSize.SMALL,
-                              ),
-                              const SizedBox(width: 8),
-                              GFButton(
-                                onPressed: () =>
-                                    _updateStatus(booking.id, 'cancelled'),
-                                text: 'Tolak',
-                                color: GFColors.DANGER,
-                                size: GFSize.SMALL,
-                              ),
-                            ],
-                            const SizedBox(width: 8),
                             GFButton(
-                              onPressed: () =>
-                                  _showStatusUpdateDialog(
-                                      context,
-                                      notifier,
-                                      booking.id,
-                                      booking.status
-                                  ),
+                              onPressed: () => _showStatusUpdateDialog(
+                                  context,
+                                  notifier,
+                                  booking.id,
+                                  booking.status
+                              ),
                               text: 'Ubah Status',
                               color: GFColors.INFO,
                               size: GFSize.SMALL,
@@ -229,8 +205,7 @@ class AdminBookingPage extends ConsumerWidget {
                 );
               },
             );
-          }
-      ),
+          }),
     );
   }
 
@@ -264,75 +239,78 @@ class AdminBookingPage extends ConsumerWidget {
   }
 
   Color _getStatusColor(String status) {
-    try {
-      final statusEnum = BookingStatus.values.firstWhere(
-            (e) =>
-        e
-            .toString()
-            .split('.')
-            .last
-            .toLowerCase() == status.toLowerCase(),
-        orElse: () => BookingStatus.pending,
-      );
-      switch (statusEnum) {
-        case BookingStatus.confirmed:
-          return Colors.green;
-        case BookingStatus.cancelled:
-          return Colors.red;
-        case BookingStatus.completed:
-          return Colors.blue;
-        case BookingStatus.inProgress:
-          return Colors.orange;
-        default:
-          return Colors.grey;
-      }
-    } catch (e) {
-      return Colors.grey;
+    switch (status) {
+      case 'pending':
+        return Colors.grey;
+      case 'confirmed':
+        return Colors.green;
+      case 'inProgress':
+        return Colors.orange;
+      case 'waitingForParts':
+        return Colors.blueGrey;
+      case 'readyForPickup':
+        return Colors.teal;
+      case 'completed':
+        return Colors.blue;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
   String _getStatusDisplayName(String status) {
-    try {
-      final statusEnum = BookingStatus.values.firstWhere(
-            (e) =>
-        e
-            .toString()
-            .split('.')
-            .last
-            .toLowerCase() == status.toLowerCase(),
-        orElse: () => BookingStatus.pending,
-      );
-      return statusEnum.displayName;
-    } catch (e) {
-      return status;
+    switch (status) {
+      case 'pending':
+        return 'Menunggu Konfirmasi';
+      case 'confirmed':
+        return 'Dikonfirmasi';
+      case 'inProgress':
+        return 'Sedang Dikerjakan';
+      case 'waitingForParts':
+        return 'Menunggu Part';
+      case 'readyForPickup':
+        return 'Siap Diambil';
+      case 'completed':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
     }
   }
+
   bool _isValidStatusTransition(String currentStatus, String newStatus) {
     final validTransitions = {
       'pending': ['confirmed', 'cancelled'],
       'confirmed': ['inProgress', 'cancelled'],
-      'inProgress': ['waitingForParts', 'completed','cancelled'],
-      'waitingForParts': ['inProgress', 'completed','cancelled'],
-      'completed': [], // Cannot change from completed
-      'cancelled': [], // Cannot change from cancelled
+      'inProgress': ['waitingForParts', 'readyForPickup', 'completed', 'cancelled'],
+      'waitingForParts': ['inProgress', 'readyForPickup', 'completed', 'cancelled'],
+      'readyForPickup': ['completed', 'cancelled'],
+      'completed': [],
+      'cancelled': [],
     };
 
     return validTransitions[currentStatus]?.contains(newStatus) ?? false;
   }
+
   void _showStatusUpdateDialog(
       BuildContext context, BookingsNotifier notifier, String id, String currentStatus) {
     final statuses = <String, String>{
       'pending': 'Menunggu Konfirmasi',
       'confirmed': 'Dikonfirmasi',
-      'inProgress': 'Dalam Pengerjaan',
+      'inProgress': 'Sedang Dikerjakan',
       'waitingForParts': 'Menunggu Part',
+      'readyForPickup': 'Siap Diambil',
       'completed': 'Selesai',
       'cancelled': 'Dibatalkan',
     };
 
     // Only allow valid status transitions
     final availableStatuses = statuses.entries
-        .where((e) => _isValidStatusTransition(currentStatus, e.key) || e.key == currentStatus)
+        .where((e) =>
+    _isValidStatusTransition(currentStatus, e.key) ||
+        e.key == currentStatus)
         .toList();
 
     String selectedStatus = currentStatus;
@@ -445,7 +423,7 @@ class AdminBookingPage extends ConsumerWidget {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('Batal'),
                 ),
                 ElevatedButton(

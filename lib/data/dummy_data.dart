@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/product.dart';
 import '../models/enums.dart';
-import '../models/bundling.dart';
 import '../models/promo.dart';
 import '../providers/app_providers.dart';
 
@@ -70,23 +69,6 @@ Future<void> seedDummyData(WidgetRef ref) async {
       imageUrl: 'https://via.placeholder.com/150/808080/FFFFFF?text=Kamera+Mundur',
     ),
   ];
-
-  ref.read(bundlingsProvider.notifier).set([
-    Bundling(
-      id: uuid.v4(),
-      name: 'Paket Ganti Oli Hemat',
-      description: 'Oli + Filter Oli dengan harga spesial.',
-      productIds: [products[0].id, products[1].id],
-      bundlePrice: 180000,
-    ),
-    Bundling(
-      id: uuid.v4(),
-      name: 'Paket Tune-up',
-      description: 'Perawatan rutin untuk performa mesin.',
-      productIds: [products[0].id],
-      bundlePrice: 200000,
-    ),
-  ]);
 
   ref.read(promosProvider.notifier).set([
     Promo(

@@ -1,295 +1,290 @@
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../providers/app_providers.dart';
+import '../../models/order.dart';
+import '../../models/service_booking.dart';
+import 'package:flutter/foundation.dart'; // for debugPrint
 
-// ============================
-// ENUM FILTERS
-// ============================
-enum HistoryFilter { day, week, month }
-enum TransactionTypeFilter { all, spareParts }
-
-// ============================
-// MODEL
-// ============================
-class HistoryEntry {
-  final String id;
-  final String type; // 'Sale' atau 'Service'
-  final String description;
-  final double amount;
-  final DateTime date;
-
-  HistoryEntry({
-    required this.id,
-    required this.type,
-    required this.description,
-    required this.amount,
-    required this.date,
-  });
-}
-
-// ============================
-// STATE NOTIFIER
-// ============================
-class HistoryListNotifier extends StateNotifier<List<HistoryEntry>> {
-  HistoryListNotifier()
-      : super([
-          HistoryEntry(
-              id: '1',
-              type: 'Sale',
-              description: 'Oil Change',
-              amount: 50.0,
-              date: DateTime.now().subtract(const Duration(hours: 2))),
-          HistoryEntry(
-              id: '2',
-              type: 'Service',
-              description: 'Tire Rotation',
-              amount: 30.0,
-              date: DateTime.now().subtract(const Duration(days: 1))),
-          HistoryEntry(
-              id: '3',
-              type: 'Sale',
-              description: 'Brake Pad Replacement',
-              amount: 120.0,
-              date: DateTime.now().subtract(const Duration(days: 3))),
-          HistoryEntry(
-              id: '4',
-              type: 'Service',
-              description: 'Engine Tune-up',
-              amount: 150.0,
-              date: DateTime.now().subtract(const Duration(days: 8))),
-          HistoryEntry(
-              id: '5',
-              type: 'Sale',
-              description: 'Battery Purchase',
-              amount: 90.0,
-              date: DateTime.now().subtract(const Duration(days: 15))),
-          HistoryEntry(
-              id: '6',
-              type: 'Service',
-              description: 'Wheel Alignment',
-              amount: 70.0,
-              date: DateTime.now().subtract(const Duration(days: 25))),
-          HistoryEntry(
-              id: '7',
-              type: 'Sale',
-              description: 'Headlight Bulb',
-              amount: 20.0,
-              date: DateTime.now().subtract(const Duration(days: 35))),
-        ]);
-
-  List<HistoryEntry> getFilteredHistory(
-      HistoryFilter dateFilter, TransactionTypeFilter typeFilter) {
-    final now = DateTime.now();
-
-    return state.where((entry) {
-      // =====================
-      // FILTER TANGGAL
-      // =====================
-      bool isDateValid = false;
-
-      switch (dateFilter) {
-        case HistoryFilter.day:
-          isDateValid = entry.date.year == now.year &&
-              entry.date.month == now.month &&
-              entry.date.day == now.day;
-          break;
-
-        case HistoryFilter.week:
-          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 6));
-
-          isDateValid = entry.date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) &&
-              entry.date.isBefore(endOfWeek.add(const Duration(days: 1)));
-          break;
-
-        case HistoryFilter.month:
-          isDateValid = entry.date.year == now.year &&
-              entry.date.month == now.month;
-          break;
-      }
-
-      // =====================
-      // FILTER TIPE TRANSAKSI
-      // =====================
-      bool isTypeValid;
-      switch (typeFilter) {
-        case TransactionTypeFilter.all:
-          isTypeValid = true;
-          break;
-        case TransactionTypeFilter.spareParts:
-          isTypeValid = entry.type == 'Sale';
-          break;
-      }
-
-      return isDateValid && isTypeValid;
-    }).toList();
-  }
-}
-
-// ============================
-// PROVIDERS
-// ============================
-final historyFilterProvider =
-    StateProvider<HistoryFilter>((ref) => HistoryFilter.day);
-
-final transactionTypeFilterProvider =
-    StateProvider<TransactionTypeFilter>((ref) => TransactionTypeFilter.all);
-
-final historyListProvider =
-    StateNotifierProvider<HistoryListNotifier, List<HistoryEntry>>(
-        (ref) => HistoryListNotifier());
-
-// ============================
-// UI PAGE
-// ============================
-class AdminHistoryPage extends ConsumerWidget {
+class AdminHistoryPage extends ConsumerStatefulWidget {
   const AdminHistoryPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentDateFilter = ref.watch(historyFilterProvider);
-    final currentTypeFilter = ref.watch(transactionTypeFilterProvider);
+  ConsumerState<AdminHistoryPage> createState() => _AdminHistoryPageState();
+}
 
-    final historyNotifier = ref.read(historyListProvider.notifier);
-    final filteredHistory =
-        historyNotifier.getFilteredHistory(currentDateFilter, currentTypeFilter);
+class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
+  bool showDeliveredOrders = true;
+  bool showCancelledOrders = true;
+  bool showCompletedServices = true;
+  bool showCancelledServices = true;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Admin Sales/Service History")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+  @override
+  Widget build(BuildContext context) {
+    final ordersAsync = ref.watch(allOrdersProvider);
+    final bookings = ref.watch(bookingsProvider);
+    
+    // Filter services based on status
+    final serviceHistory = bookings.where((b) {
+      if (showCompletedServices && b.status == "completed") return true;
+      if (showCancelledServices && b.status == "cancelled") return true;
+      return false;
+    }).toList();
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Riwayat Transaksi Admin"),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: "Produk"),
+              Tab(text: "Servis"),
+            ],
+          ),
+        ),
+        body: TabBarView(
           children: [
-            // ============================
-            // FILTER TANGGAL BUTTON GROUP
-            // ============================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildFilterButton(
-                  context,
-                  ref,
-                  label: "Day",
-                  isActive: currentDateFilter == HistoryFilter.day,
-                  onTap: () =>
-                      ref.read(historyFilterProvider.notifier).state =
-                          HistoryFilter.day,
-                ),
-                _buildFilterButton(
-                  context,
-                  ref,
-                  label: "Week",
-                  isActive: currentDateFilter == HistoryFilter.week,
-                  onTap: () =>
-                      ref.read(historyFilterProvider.notifier).state =
-                          HistoryFilter.week,
-                ),
-                _buildFilterButton(
-                  context,
-                  ref,
-                  label: "Month",
-                  isActive: currentDateFilter == HistoryFilter.month,
-                  onTap: () =>
-                      ref.read(historyFilterProvider.notifier).state =
-                          HistoryFilter.month,
-                ),
-              ],
+            ordersAsync.when(
+              data: (orders) {
+                debugPrint('Total orders: ${orders.length}');
+                if (orders.isNotEmpty) {
+                  debugPrint('Order statuses: ${orders.map((o) => o.status).toSet().toList()}');
+                }
+                return _buildOrderTab(orders);
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(
+                child: Text('Error loading orders: $error'),
+              ),
             ),
-
-            const SizedBox(height: 24),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildFilterButton(
-                  context,
-                  ref,
-                  label: "Semua Transaksi",
-                  isActive: currentTypeFilter == TransactionTypeFilter.all,
-                  onTap: () =>
-                      ref.read(transactionTypeFilterProvider.notifier).state =
-                          TransactionTypeFilter.all,
-                ),
-                _buildFilterButton(
-                  context,
-                  ref,
-                  label: "Hanya Suku Cadang",
-                  isActive:
-                      currentTypeFilter == TransactionTypeFilter.spareParts,
-                  onTap: () =>
-                      ref.read(transactionTypeFilterProvider.notifier).state =
-                          TransactionTypeFilter.spareParts,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ============================
-            // LIST HISTORY
-            // ============================
-            Expanded(
-              child: filteredHistory.isEmpty
-                  ? const Center(
-                      child: Text("No history found for this filter"),
-                    )
-                  : ListView.builder(
-                      itemCount: filteredHistory.length,
-                      itemBuilder: (context, index) {
-                        final entry = filteredHistory[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          child: ListTile(
-                            title: Text(
-                              "${entry.type}: ${entry.description}",
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              "Amount: \$${entry.amount.toStringAsFixed(2)}\n"
-                              "Date: ${entry.date.toLocal().toString().split(' ')[0]}",
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+            _buildServiceTab(serviceHistory),
           ],
         ),
       ),
     );
   }
 
-  // ============================
-  // BUTTON COMPONENT
-  // ============================
-  Widget _buildFilterButton(
-    BuildContext context,
-    WidgetRef ref, {
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: FilledButton(
-          onPressed: onTap,
-          style: FilledButton.styleFrom(
-            backgroundColor: isActive
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.surfaceVariant,
-            foregroundColor: isActive
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12),
+  // ===========================================================
+  // =============== TAB PRODUK (ORDERS) =======================
+  // ===========================================================
+  Widget _buildOrderTab(List<Order> orders) {
+    return Column(
+      children: [
+        _buildOrderFilterChips(),
+        const SizedBox(height: 8),
+        Expanded(
+          child: orders.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Belum ada pesanan"),
+                      if (orders.isEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Total pesanan: 0',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Total pesanan: ${orders.length} • Status yang tersedia: ${orders.map((o) => o.status).toSet().join(', ')}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ],
+                  ),
+                )
+              : ListView(
+            children: _applyOrderFilter(orders).map((order) {
+              return Card(
+                margin: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                child: ListTile(
+                  title: Text("Pesanan #${order.id.substring(0, 8)}"),
+                  subtitle: Text(
+                    "${order.items.length} item • Rp ${order.total.toStringAsFixed(0)} • ${_statusLabel(order.status)}",
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    if (order.id != null) {
+                      context.go('/admin/detail/${order.id}');
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Tidak dapat membuka detail order')),
+                      );
+                    }
+                  },
+                ),
+              );
+            }).toList(),
           ),
-          child: Text(label),
         ),
+      ],
+    );
+  }
+
+  Widget _buildOrderFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          FilterChip(
+            label: const Text('Terkirim'),
+            selected: showDeliveredOrders,
+            onSelected: (bool selected) {
+              setState(() {
+                showDeliveredOrders = selected;
+              });
+            },
+          ),
+          FilterChip(
+            label: const Text('Dibatalkan'),
+            selected: showCancelledOrders,
+            onSelected: (bool selected) {
+              setState(() {
+                showCancelledOrders = selected;
+              });
+            },
+          ),
+        ],
       ),
     );
+  }
+
+  List<Order> _applyOrderFilter(List<Order> orders) {
+    return orders.where((o) {
+      if (showDeliveredOrders && o.status == "delivered") return true;
+      if (showCancelledOrders && o.status == "cancelled") return true;
+      return false;
+    }).toList();
+  }
+
+  // ===========================================================
+  // =============== TAB SERVIS (BOOKINGS) ======================
+  // ===========================================================
+  Widget _buildServiceTab(List<ServiceBooking> bookings) {
+    return Column(
+      children: [
+        _buildServiceFilterChips(),
+        const SizedBox(height: 8),
+        Expanded(
+          child: bookings.isEmpty
+              ? const Center(child: Text("Belum ada servis selesai/batal"))
+              : ListView.builder(
+            itemCount: bookings.length,
+            itemBuilder: (context, index) {
+              final b = bookings[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                child: ListTile(
+                  title: Text(
+                      "${_formatServiceType(b.serviceType)} • ${_getStatusText(b.status)}"),
+                  subtitle: Text(
+                    "Total: Rp ${(b.totalCost ?? b.estimatedCost).toStringAsFixed(0)}\n"
+                        "${_formatDate(b.scheduledAt)}",
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    context.go('/service-detail/${b.id}');
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          FilterChip(
+            label: const Text('Selesai'),
+            selected: showCompletedServices,
+            onSelected: (bool selected) {
+              setState(() {
+                showCompletedServices = selected;
+              });
+            },
+          ),
+          FilterChip(
+            label: const Text('Dibatalkan'),
+            selected: showCancelledServices,
+            onSelected: (bool selected) {
+              setState(() {
+                showCancelledServices = selected;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods
+  String _formatServiceType(String type) {
+    switch (type) {
+      case 'regular':
+        return 'Servis Berkala';
+      case 'repair':
+        return 'Perbaikan';
+      case 'emergency':
+        return 'Darurat';
+      default:
+        return type;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Menunggu Konfirmasi';
+      case 'confirmed':
+        return 'Dikonfirmasi';
+      case 'in_progress':
+        return 'Sedang Dikerjakan';
+      case 'waiting_parts':
+        return 'Menunggu Part';
+      case 'ready_for_pickup':
+        return 'Siap Diambil';
+      case 'completed':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case "pending":
+        return "Menunggu Konfirmasi";
+      case "processing":
+        return "Diproses";
+      case "shipped":
+        return "Dikirim";
+      case "delivered":
+        return "Terkirim";
+      case "cancelled":
+        return "Dibatalkan";
+      default:
+        return status;
+    }
   }
 }

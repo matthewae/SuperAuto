@@ -1,7 +1,7 @@
 class Promo {
   final String id;
   final String name;
-  final String type; // service_discount, product_discount, bundling
+  final String type; // service_discount, product_discount
   final double value; // percentage or fixed depending on type
   final DateTime start;
   final DateTime end;

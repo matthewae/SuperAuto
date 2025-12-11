@@ -209,7 +209,7 @@ class HomePage extends StatelessWidget {
             
             const SizedBox(height: 16),
             const Text(
-              'Layanan Lainnya',
+              'Lainnya',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -220,7 +220,7 @@ class HomePage extends StatelessWidget {
               children: [
                 _buildActionButton(
                   context: context,
-                  text: 'Service sedang berlangsung',
+                  text: 'Service tracking',
                   icon: Icons.history,
                   onTap: () => context.push('/bookings'),
                 ),

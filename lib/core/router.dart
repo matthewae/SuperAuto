@@ -12,15 +12,11 @@ import '../screens/cars/cars_list_page.dart';
 import '../screens/cars/car_detail_page.dart';
 import '../screens/cars/car_scan_page.dart';
 import '../screens/booking/booking_page.dart';
-import '../screens/tracking/tracking_page.dart';
-import '../screens/history/history_page.dart';
 import '../screens/catalog/catalog_page.dart';
 import '../screens/catalog/product_detail_page.dart';
 import '../screens/cart/cart_page.dart';
 import '../screens/checkout/checkout_page.dart';
-import '../screens/bundling/bundling_page.dart';
 import '../screens/promo/promo_page.dart';
-import '../screens/loyalty/loyalty_page.dart';
 import '../screens/history/order_history_page.dart';
 import '../screens/profile/profile_page.dart';
 import '../screens/profile/edit_profile_page.dart';
@@ -28,7 +24,7 @@ import '../widgets/main_shell.dart';
 import '../screens/booking/bookings_page.dart';
 import '../screens/cars/car_edit_page.dart';
 import '../screens/checkout/order_confirmation_page.dart';
-import '../screens/history/order_detail_page.dart';
+import '../screens/admin/order_detail_page.dart';
 import '../providers/app_providers.dart';
 import '../screens/admin/admin_order_list_page.dart';
 import '../screens/admin/admin_order_detail_page.dart';
@@ -122,11 +118,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/tracking',
-        name: 'tracking',
-        builder: (context, state) => const TrackingPage(),
-      ),
-      GoRoute(
         path: '/product/:id',
         name: 'product-detail',
         builder: (context, state) => ProductDetailPage(productId: state.pathParameters['id']!),
@@ -178,7 +169,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           return OrderDetailPage(order: order);
         },
       ),
-
       GoRoute(
         path: '/admin/detail/:id',
         name: 'admin-order-detail',
@@ -188,26 +178,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/bundling',
-        name: 'bundling',
-        builder: (context, state) => const BundlingPage(),
-      ),
-      GoRoute(
         path: '/promo',
         name: 'promo',
         builder: (context, state) => const PromoPage(),
-      ),
-      GoRoute(
-        path: '/loyalty',
-        name: 'loyalty',
-        builder: (context, state) => const LoyaltyPage(),
       ),
       GoRoute(
         path: '/edit-profile',
         name: 'edit-profile',
         builder: (context, state) => const EditProfilePage(),
       ),
-      // Rute lain akan ditambahkan seiring fitur dibangun
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(child: Text('Route error: ${state.error}')),

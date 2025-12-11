@@ -9,7 +9,6 @@ import '../models/product.dart';
 import '../models/cart.dart';
 import '../models/order.dart';
 import '../models/service_booking.dart';
-import '../models/bundling.dart';
 import '../models/promo.dart';
 import '../models/loyalty_points.dart';
 import '../models/enums.dart';
@@ -799,15 +798,6 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
   }
 }
 
-// Bundlings
-final bundlingsProvider = StateNotifierProvider<BundlingsNotifier, List<Bundling>>((ref) {
-  return BundlingsNotifier();
-});
-
-class BundlingsNotifier extends StateNotifier<List<Bundling>> {
-  BundlingsNotifier() : super(const []);
-  void set(List<Bundling> list) => state = list;
-}
 
 // Promos
 final promosProvider = StateNotifierProvider<PromosNotifier, List<Promo>>((ref) {

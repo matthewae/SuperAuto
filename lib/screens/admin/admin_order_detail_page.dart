@@ -203,7 +203,7 @@ class _AdminOrderDetailPageState
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          order.status,
+                          _getStatusDisplayName(order.status),
                           style: TextStyle(
                             color: _getStatusColor(order.status),
                             fontWeight: FontWeight.w500,
@@ -325,6 +325,9 @@ class _AdminOrderDetailPageState
   }
 
   Widget _buildManageOrderTab(Order order) {
+    // Check if order is in final status
+    final isFinalStatus = order.status == 'delivered' || order.status == 'cancelled';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -348,22 +351,39 @@ class _AdminOrderDetailPageState
                   const SizedBox(height: 16),
                   TextField(
                     controller: _trackingController,
-                    decoration: const InputDecoration(
+                    enabled: !isFinalStatus, // Disable if order is in final status
+                    decoration: InputDecoration(
                       hintText: "Enter tracking number",
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
+                      enabledBorder: isFinalStatus
+                          ? OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      )
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => _updateTrackingNumber(order.id),
+                      onPressed: isFinalStatus ? null : () => _updateTrackingNumber(order.id),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: const Text("Update Tracking Number"),
                     ),
                   ),
+                  if (isFinalStatus)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        "Cannot update tracking number for ${order.status} orders",
+                        style: TextStyle(
+                          color: Colors.red.shade400,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -389,27 +409,35 @@ class _AdminOrderDetailPageState
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: order.status,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      enabledBorder: isFinalStatus
+                          ? OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            )
+                          : null,
                     ),
-                    items: const [
-                      DropdownMenuItem(value: "pending", child: Text("Pending")),
-                      DropdownMenuItem(value: "processing", child: Text("Processing")),
-                      DropdownMenuItem(value: "shipped", child: Text("Shipped")),
-                      DropdownMenuItem(value: "delivered", child: Text("Delivered")),
-                      DropdownMenuItem(value: "cancelled", child: Text("Cancelled")),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        _updateOrderStatus(order.id, value);
-                      }
-                    },
+                    items: _getAvailableStatuses(order.status).map<DropdownMenuItem<String>>((status) {
+                      return DropdownMenuItem<String>(
+                        value: status['value']!,
+                        child: Text(status['label']!),
+                      );
+                    }).toList(),
+                    onChanged: isFinalStatus 
+                        ? null 
+                        : (String? value) {
+                            if (value != null) {
+                              _updateOrderStatus(order.id, value);
+                            }
+                          },
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Note: Changing the status will notify the customer.",
+                    isFinalStatus
+                        ? "This order is ${order.status} and cannot be modified."
+                        : "Note: Changing the status will notify the customer.",
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: isFinalStatus ? Colors.red.shade400 : Colors.grey[600],
                       fontSize: 12,
                     ),
                   ),
@@ -464,5 +492,57 @@ class _AdminOrderDetailPageState
       default:
         return Colors.grey;
     }
+  }
+
+  String _getStatusDisplayName(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Menunggu Pembayaran';
+      case 'processing':
+        return 'Sedang Diproses';
+      case 'shipped':
+        return 'Dikirim';
+      case 'delivered':
+        return 'Terkirim';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
+  }
+
+  // Function to check if status transition is valid
+  bool _isValidStatusTransition(String currentStatus, String newStatus) {
+    final validTransitions = {
+      'pending': ['processing', 'cancelled'],
+      'processing': ['shipped', 'cancelled'],
+      'shipped': ['delivered', 'cancelled'],
+      'delivered': [], // Final status
+      'cancelled': [], // Final status
+    };
+
+    return validTransitions[currentStatus]?.contains(newStatus) ?? false;
+  }
+
+  // Function to get available statuses for dropdown
+  List<Map<String, String>> _getAvailableStatuses(String currentStatus) {
+    final allStatuses = [
+      {'value': 'pending', 'label': 'Menunggu Pembayaran'},
+      {'value': 'processing', 'label': 'Sedang Diproses'},
+      {'value': 'shipped', 'label': 'Dikirim'},
+      {'value': 'delivered', 'label': 'Terkirim'},
+      {'value': 'cancelled', 'label': 'Dibatalkan'},
+    ];
+
+    // Return all statuses if current status is final
+    if (currentStatus == 'delivered' || currentStatus == 'cancelled') {
+      return allStatuses.where((status) => status['value'] == currentStatus).toList();
+    }
+
+    // Return current status + valid transitions
+    return allStatuses.where((status) {
+      return status['value'] == currentStatus ||
+          _isValidStatusTransition(currentStatus, status['value']!);
+    }).toList();
   }
 }

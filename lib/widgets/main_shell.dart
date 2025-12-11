@@ -82,7 +82,7 @@ class _MainShellState extends State<MainShell> {
         GoRouter.of(context).go('/home');
         break;
       case 1:
-        GoRouter.of(context).go('/history');
+        GoRouter.of(context).go('/order-history');
         break;
       case 2:
         GoRouter.of(context).go('/cart');

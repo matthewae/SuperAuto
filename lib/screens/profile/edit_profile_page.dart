@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/neumorphic_header.dart';
 import '../../providers/app_providers.dart';
+import 'package:superauto/models/user.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -20,16 +21,30 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   bool _isLoading = false;
   bool _isChangingPassword = false;
+  String? _errorMessage;
+  bool _showPasswordWarning = false;
 
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authProvider).value;
-    _nameController = TextEditingController(text: user?.name ?? '');
-    _emailController = TextEditingController(text: user?.email ?? '');
-    _currentPasswordController = TextEditingController();
-    _newPasswordController = TextEditingController();
-    _confirmPasswordController = TextEditingController();
+    _initializeUserData();
+  }
+
+  Future<void> _initializeUserData() async {
+    try {
+      final user = ref.read(authProvider).value;
+      if (user != null) {
+        setState(() {
+          _nameController = TextEditingController(text: user.name);
+          _emailController = TextEditingController(text: user.email);
+          _currentPasswordController = TextEditingController();
+          _newPasswordController = TextEditingController();
+          _confirmPasswordController = TextEditingController();
+        });
+      }
+    } catch (e) {
+      _handleAuthError(e);
+    }
   }
 
   @override
@@ -42,32 +57,38 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     super.dispose();
   }
 
-  // Di dalam _EditProfilePageState, tambahkan metode validasi email:
   bool _isValidEmail(String email) {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     return emailRegex.hasMatch(email);
   }
 
-  // Di dalam _EditProfilePageState, tambahkan logging untuk debugging:
+  void _handleAuthError(dynamic error) {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString().contains('Password saat ini tidak benar')
+            ? 'Password saat ini tidak benar. Silakan coba lagi.'
+            : 'Terjadi kesalahan. Silakan coba lagi.';
+      });
+    }
+  }
+
   Future<void> _updateProfile() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
+      _showPasswordWarning = false;
     });
 
     try {
       final authNotifier = ref.read(authProvider.notifier);
 
-      // Validasi email
       if (!_isValidEmail(_emailController.text)) {
         throw Exception('Format email tidak valid');
       }
 
-      // Debug: Print values before submitting
-      print('Nama: ${_nameController.text}');
-      print('Email: ${_emailController.text}');
-      print('Mengubah password: $_isChangingPassword');
-
-      // Check if password change is requested
       if (_isChangingPassword) {
         if (_currentPasswordController.text.isEmpty ||
             _newPasswordController.text.isEmpty ||
@@ -79,7 +100,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           throw Exception('Password baru dan konfirmasi tidak cocok');
         }
 
-        // Update with password change
+        // Check if current password is correct
+        final user = ref.read(authProvider).value;
+        if (user != null) {
+          final isPasswordCorrect = await ref.read(userDaoProvider).verifyPassword(
+            user.id,
+            _currentPasswordController.text,
+          );
+
+          if (!isPasswordCorrect) {
+            setState(() {
+              _showPasswordWarning = true;
+              _isLoading = false;
+            });
+            return; // Don't proceed with update
+          }
+        }
+
         await authNotifier.updateProfile(
           name: _nameController.text,
           email: _emailController.text,
@@ -87,38 +124,103 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           newPassword: _newPasswordController.text,
         );
       } else {
-        // Update without password change
         await authNotifier.updateProfile(
           name: _nameController.text,
           email: _emailController.text,
         );
       }
 
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profil berhasil diperbarui!")),
+      );
+
+      // Navigate back to profile page instead of login
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profil berhasil diperbarui!")),
-        );
-        context.pop(); // Go back to profile page
+        context.go('/profile');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
-        );
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString().contains('Password saat ini tidak benar')
+            ? 'Password saat ini tidak benar. Silakan coba lagi.'
+            : 'Terjadi kesalahan. Silakan coba lagi.';
+      });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider).value;
+    final authState = ref.watch(authProvider);
 
+    // Show error dialog if there's an error
+    if (_errorMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text(_errorMessage!),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (mounted) {
+                    setState(() => _errorMessage = null);
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      });
+    }
+
+    return authState.when(
+      data: (user) {
+        if (user == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              // Use GoRouter instead of Navigator
+              context.go('/login');
+            }
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return _buildContent(user);
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.read(authProvider.notifier).logout();
+            // Use GoRouter instead of Navigator
+            context.go('/login');
+          }
+        });
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(User user) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -131,7 +233,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: NeumorphicHeader(title: 'Edit Profil', subtitle: 'Perbarui informasi akun Anda'),
+            child: NeumorphicHeader(
+              title: 'Edit Profil',
+              subtitle: 'Perbarui informasi akun Anda',
+            ),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -139,62 +244,51 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (user != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                          child: Icon(Icons.person, size: 40, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          user.name,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          user.email,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 24),
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nama',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            border: const OutlineInputBorder(),
-                            errorText: _emailController.text.isNotEmpty && !_isValidEmail(_emailController.text)
-                                ? 'Format email tidak valid'
-                                : null,
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          onChanged: (value) {
-                            setState(() {}); // Trigger rebuild to show/hide error message
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    child: Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      border: const OutlineInputBorder(),
+                      errorText: _emailController.text.isNotEmpty && !_isValidEmail(_emailController.text)
+                          ? 'Format email tidak valid'
+                          : null,
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
                   const SizedBox(height: 24),
                   const Divider(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
-                      Text('Ubah Kata Sandi', style: Theme.of(context).textTheme.headlineSmall),
+                      Text(
+                        'Ubah Password',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const Spacer(),
                       Switch(
                         value: _isChangingPassword,
                         onChanged: (value) {
                           setState(() {
                             _isChangingPassword = value;
+                            _showPasswordWarning = false;
                             if (!value) {
                               _currentPasswordController.clear();
                               _newPasswordController.clear();
@@ -209,40 +303,70 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _currentPasswordController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kata Sandi Saat Ini',
-                        border: OutlineInputBorder(),
-                      ),
                       obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Password Saat Ini',
+                        border: const OutlineInputBorder(),
+                        errorText: _showPasswordWarning
+                            ? 'Password saat ini tidak benar. Silakan coba lagi.'
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _newPasswordController,
+                      obscureText: true,
                       decoration: const InputDecoration(
-                        labelText: 'Kata Sandi Baru',
+                        labelText: 'Password Baru',
                         border: OutlineInputBorder(),
                       ),
-                      obscureText: true,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _confirmPasswordController,
-                      decoration: const InputDecoration(
-                        labelText: 'Konfirmasi Kata Sandi Baru',
-                        border: OutlineInputBorder(),
-                      ),
                       obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Konfirmasi Password Baru',
+                        border: const OutlineInputBorder(),
+                        errorText: _confirmPasswordController.text.isNotEmpty &&
+                            _newPasswordController.text.isNotEmpty &&
+                            _confirmPasswordController.text != _newPasswordController.text
+                            ? 'Password baru dan konfirmasi tidak cocok'
+                            : null,
+                      ),
                     ),
+                    if (_showPasswordWarning) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.red[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Password saat ini tidak benar. Silakan periksa kembali password Anda.',
+                                style: TextStyle(color: Colors.red[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _updateProfile,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                         : const Text('Simpan Perubahan'),
                   ),
                 ],

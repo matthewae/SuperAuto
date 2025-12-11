@@ -67,6 +67,7 @@ class Order {
     String? userName,
     List<OrderItem>? items,
     double? total,
+    DateTime? updatedAt,
     DateTime? createdAt,
     String? status,
     String? paymentMethod,
@@ -80,6 +81,7 @@ class Order {
       userName: userName ?? this.userName,
       items: items ?? List.from(this.items), // Buat salinan baru dari daftar items
       total: total ?? this.total,
+      updatedAt: updatedAt ?? this.updatedAt,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
       paymentMethod: paymentMethod ?? this.paymentMethod,

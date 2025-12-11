@@ -121,6 +121,67 @@ enum ProductCategory {
   exteriorAccessories,
   electronics, accessories,
 }
+enum OrderFilter {
+  pending,
+  processing,
+  shipped,
+  delivered,
+  cancelled,
+}
+
+enum OrderStatus {
+  pending('Menunggu Konfirmasi'),
+  processing('Diproses'),
+  shipped('Dikirim'),
+  delivered('Terkirim'),
+  cancelled('Dibatalkan');
+
+  final String displayName;
+  const OrderStatus(this.displayName);
+
+  String get name => toString().split('.').last;
+
+  // Check if the status can be changed
+  bool get isFinalStatus => this == OrderStatus.delivered || this == OrderStatus.cancelled;
+
+  // Get next possible statuses based on current status
+  static List<OrderStatus> getNextPossibleStatuses(OrderStatus current) {
+    if (current.isFinalStatus) {
+      return []; // No further status changes allowed for final statuses
+    }
+
+    switch (current) {
+      case OrderStatus.pending:
+        return [OrderStatus.processing, OrderStatus.cancelled];
+      case OrderStatus.processing:
+        return [OrderStatus.shipped, OrderStatus.cancelled];
+      case OrderStatus.shipped:
+        return [OrderStatus.delivered];
+      case OrderStatus.delivered:
+      case OrderStatus.cancelled:
+        return []; // These are final statuses
+    }
+  }
+
+  // Get display names for dropdown
+  static List<DropdownMenuItem<OrderStatus>> getStatusDropdownItems(OrderStatus currentStatus) {
+    final possibleStatuses = getNextPossibleStatuses(currentStatus);
+    return possibleStatuses
+        .map((status) => DropdownMenuItem<OrderStatus>(
+      value: status,
+      child: Text(status.displayName),
+    ))
+        .toList();
+  }
+
+  // Convert from string
+  static OrderStatus fromString(String val) {
+    return OrderStatus.values
+        .firstWhere((e) => e.name == val, orElse: () => OrderStatus.pending);
+  }
+}
+
+
 
 extension ProductCategoryExt on ProductCategory {
   String get nameStr => toString().split('.').last;
@@ -129,4 +190,7 @@ extension ProductCategoryExt on ProductCategory {
     return ProductCategory.values
         .firstWhere((e) => e.toString().split('.').last == val);
   }
+
+
+
 }

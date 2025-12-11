@@ -47,7 +47,19 @@ class AdminOrderListPage extends ConsumerWidget {
             ),
           ),
           data: (orders) {
-            if (orders.isEmpty) {
+            // Debug log all orders and their statuses
+            debugPrint('All orders statuses: ${orders.map((o) => o.status).toList()}');
+
+            final filteredOrders = orders.where((order) {
+              final shouldInclude = order.status != 'delivered' && order.status != 'cancelled';
+              debugPrint('Order ${order.id} - status: ${order.status} - include: $shouldInclude');
+              return shouldInclude;
+            }).toList();
+
+            debugPrint('Filtered orders count: ${filteredOrders.length}');
+            debugPrint('Filtered orders statuses: ${filteredOrders.map((o) => o.status).toList()}');
+
+            if (filteredOrders.isEmpty) {
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -55,7 +67,7 @@ class AdminOrderListPage extends ConsumerWidget {
                     Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
                     SizedBox(height: 16),
                     Text(
-                      "Belum ada order.",
+                      "Tidak ada order yang sedang diproses.",
                       style: TextStyle(fontSize: 18, color: Colors.grey),
                     ),
                   ],
@@ -65,9 +77,9 @@ class AdminOrderListPage extends ConsumerWidget {
 
             return ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: orders.length,
+              itemCount: filteredOrders.length,
               itemBuilder: (context, i) {
-                final order = orders[i];
+                final order = filteredOrders[i];
 
                 // Format tanggal
                 final dateFormat = DateFormat('dd MMM yyyy, HH:mm');

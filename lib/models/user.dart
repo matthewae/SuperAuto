@@ -7,6 +7,7 @@ class User {
   final DateTime? updatedAt;
   final String role;
 
+
   User({
     required this.id,
     required this.email,
