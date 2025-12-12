@@ -28,6 +28,7 @@ import '../screens/admin/order_detail_page.dart';
 import '../providers/app_providers.dart';
 import '../screens/admin/admin_order_list_page.dart';
 import '../screens/admin/admin_order_detail_page.dart';
+import '../screens/admin/admin_history.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -176,6 +177,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['id']!;
           return AdminOrderDetailPage(orderId: orderId);
         },
+      ),
+      GoRoute(
+        path: '/admin/history',
+        name: 'admin-history',
+        builder: (context, state) => const AdminHistoryPage(),
       ),
       GoRoute(
         path: '/promo',

@@ -109,7 +109,8 @@ class AppDatabase {
     start TEXT NOT NULL, -- ISO8601 string
     end TEXT NOT NULL, -- ISO8601 string
     createdAt TEXT NOT NULL,
-    updatedAt TEXT
+    updatedAt TEXT,
+    imageUrl TEXT
   );
 ''');
 

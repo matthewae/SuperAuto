@@ -39,6 +39,12 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              context.go('/admin');
+            },
+          ),
           title: const Text("Riwayat Transaksi Admin"),
           bottom: const TabBar(
             tabs: [

@@ -579,9 +579,30 @@ final allOrdersProvider = FutureProvider<List<Order>>((ref) async {
   return await dao.getAll();
 });
 
+final pendingOrdersCountProvider = Provider<AsyncValue<int>>((ref) {
+  final allOrdersAsync = ref.watch(allOrdersProvider);
+  return allOrdersAsync.whenData((orders) {
+    return orders.where((order) =>
+        order.status == 'pending' ||
+        order.status == 'processing' ||
+        order.status == 'shipped'
+    ).length;
+  });
+});
+
 // Bookings
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
   return BookingsNotifier(ServiceBookingDao(ref.watch(databaseProvider)));
+});
+
+final pendingBookingsCountProvider = Provider<int>((ref) {
+  final bookings = ref.watch(bookingsProvider);
+  return bookings.where((booking) =>
+      booking.status == 'in_progress' ||
+      booking.status == 'confirmed' ||
+      booking.status == 'waiting_parts' ||
+      booking.status == 'ready_for_pickup'
+  ).length;
 });
 
 //history booking
@@ -698,12 +719,16 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       final now = DateTime.now();
 
       // Build new status history
-      final Map<String, dynamic> newStatusHistory = Map<String, dynamic>.from(
-        booking.statusHistory ?? {},
+      final List<Map<String, dynamic>> newStatusHistory = List<Map<String, dynamic>>.from(
+        booking.statusHistory ?? [],
       );
 
       // Add new status to history
-      newStatusHistory[status] = now.toIso8601String();
+      newStatusHistory.add({
+        'status': status,
+        'updatedAt': now.toIso8601String(),
+        'notes': notes, // Add notes to status history
+      });
 
       print('📝 Updating status from ${booking.status} to $status');
       print('📜 New status history: $newStatusHistory');
@@ -749,6 +774,20 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       //   finalCost = totalCost - discount;
       // }
 
+      final now = DateTime.now();
+
+      // Build new status history
+      final List<Map<String, dynamic>> newStatusHistory = List<Map<String, dynamic>>.from(
+        booking.statusHistory ?? [],
+      );
+
+      // Add new status to history with notes
+      newStatusHistory.add({
+        'status': status,
+        'updatedAt': now.toIso8601String(),
+        'notes': adminNotes,
+      });
+
       final updatedBooking = booking.copyWith(
         status: status,
         jobs: jobs,
@@ -756,7 +795,8 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
         km: km,
         totalCost: totalCost, // Gunakan totalCost langsung dari parameter
         adminNotes: adminNotes,
-        updatedAt: DateTime.now(),
+        updatedAt: now,
+        statusHistory: newStatusHistory,
       );
 
       await _dao.updateStatusAndDetails(updatedBooking);

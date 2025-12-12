@@ -10,7 +10,7 @@ class ServiceBooking {
   final String? workshop;
   final String? notes;
   final String? adminNotes;
-  final Map<String, dynamic>? statusHistory;
+  final List<Map<String, dynamic>>? statusHistory;
   final List<String> jobs;
   final List<String> parts;
   final int? km;
@@ -88,7 +88,7 @@ class ServiceBooking {
       notes: map['notes'] as String?,
       adminNotes: map['adminNotes'] as String?,
       statusHistory: map['statusHistory'] != null
-          ? Map<String, dynamic>.from(jsonDecode(map['statusHistory']))
+          ? List<Map<String, dynamic>>.from(jsonDecode(map['statusHistory']))
           : null,
       jobs: map['jobs'] != null
           ? List<String>.from(jsonDecode(map['jobs']))
@@ -123,7 +123,7 @@ class ServiceBooking {
     double? estimatedCost,
     String? notes,
     String? adminNotes,
-    Map<String, dynamic>? statusHistory,
+    List<Map<String, dynamic>>? statusHistory,
     List<String>? jobs,
     List<String>? parts,
     int? km,
@@ -147,7 +147,7 @@ class ServiceBooking {
       estimatedCost: estimatedCost ?? this.estimatedCost,
       notes: notes ?? this.notes,
       adminNotes: adminNotes ?? this.adminNotes,
-      statusHistory: statusHistory ?? this.statusHistory,
+      statusHistory: statusHistory != null ? List<Map<String, dynamic>>.from(statusHistory) : (this.statusHistory != null ? List<Map<String, dynamic>>.from(this.statusHistory!) : null),
       jobs: jobs ?? this.jobs,
       parts: parts ?? this.parts,
       km: km ?? this.km,

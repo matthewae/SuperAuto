@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../data/dao/order_dao.dart';
 import '../../models/order.dart';
 import '../../providers/app_providers.dart';
+import 'package:go_router/go_router.dart';
 
 class AdminOrderDetailPage extends ConsumerStatefulWidget {
   final String orderId;
@@ -149,6 +150,12 @@ class _AdminOrderDetailPageState
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                context.go('/admin/history');
+              },
+            ),
             title: Text("Order #${order.id.substring(0, 8)}..."),
             bottom: TabBar(
               controller: _tabController,
@@ -190,23 +197,29 @@ class _AdminOrderDetailPageState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Order Information",
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Expanded(
+                    child: Text(
+                      "Order Information",
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(order.status).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _getStatusDisplayName(order.status),
-                          style: TextStyle(
-                            color: _getStatusColor(order.status),
-                            fontWeight: FontWeight.w500,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(order.status).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getStatusDisplayName(order.status),
+                            style: TextStyle(
+                              color: _getStatusColor(order.status),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -470,6 +483,7 @@ class _AdminOrderDetailPageState
             child: Text(
               value,
               style: const TextStyle(fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

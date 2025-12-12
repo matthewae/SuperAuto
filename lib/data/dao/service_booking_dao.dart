@@ -177,6 +177,7 @@ class ServiceBookingDao {
           'totalCost': booking.totalCost, // Simpan totalCost langsung tanpa perhitungan ulang
           'adminNotes': booking.adminNotes,
           'updatedAt': DateTime.now().toIso8601String(),
+          'statusHistory': booking.statusHistory != null ? jsonEncode(booking.statusHistory) : null,
         },
         where: 'id = ?',
         whereArgs: [booking.id],

@@ -188,55 +188,39 @@ class BookingDetailPage extends ConsumerWidget {
 
   Widget _buildStatusTimeline(ServiceBooking booking,context) {
     // Parse status history dari booking
-    final Map<String, DateTime> statusTimestamps = {};
+    final List<Map<String, dynamic>> timelineEvents = [];
+    debugPrint('Booking Status History: ${booking.statusHistory}');
 
     if (booking.statusHistory != null && booking.statusHistory!.isNotEmpty) {
-      booking.statusHistory!.forEach((key, value) {
-        try {
-          DateTime timestamp;
-          if (value is String) {
-            timestamp = DateTime.parse(value);
-          } else if (value is Map) {
-            // Jika value adalah Map dengan format {status, notes, updatedAt}
-            final updatedAt = value['updatedAt'];
-            if (updatedAt != null) {
-              timestamp = DateTime.parse(updatedAt.toString());
-            } else {
-              timestamp = DateTime.now();
-            }
-            // Override key dengan status dari value jika ada
-            final status = value['status'];
-            if (status != null) {
-              statusTimestamps[status.toString()] = timestamp;
-              return;
-            }
-          } else {
-            timestamp = DateTime.now();
+      booking.statusHistory!.forEach((entry) {
+          try {
+            String statusKey = entry['status']?.toString() ?? '';
+            DateTime timestamp = DateTime.parse(entry['updatedAt'].toString());
+            String? notes = entry['notes']?.toString();
+            timelineEvents.add({'status': statusKey, 'timestamp': timestamp, 'notes': notes});
+          } catch (e) {
+            debugPrint('Error parsing status history entry: $e');
           }
-          statusTimestamps[key] = timestamp;
-        } catch (e) {
-          debugPrint('Error parsing timestamp for $key: $e');
-        }
-      });
+        });
     }
 
-    // Jika tidak ada history, gunakan createdAt untuk status awal
-    if (statusTimestamps.isEmpty) {
-      statusTimestamps['pending'] = booking.createdAt;
+    if (timelineEvents.isEmpty) {
+      timelineEvents.add({'status': 'pending', 'timestamp': booking.createdAt, 'notes': null});
     }
 
     // Tambahkan current status jika belum ada
-    if (!statusTimestamps.containsKey(booking.status)) {
-      statusTimestamps[booking.status] = booking.updatedAt ?? DateTime.now();
+    // Pastikan status saat ini adalah yang terbaru
+    final currentStatusExists = timelineEvents.any((event) => event['status'] == booking.status);
+    if (!currentStatusExists) {
+      timelineEvents.add({'status': booking.status, 'timestamp': booking.updatedAt ?? DateTime.now(), 'notes': null});
     }
 
     // Sort berdasarkan waktu
-    final sortedEntries = statusTimestamps.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
+    timelineEvents.sort((a, b) => (a['timestamp'] as DateTime).compareTo(b['timestamp'] as DateTime));
 
     print('🔍 Timeline Data:');
-    for (var entry in sortedEntries) {
-      print('   ${entry.key}: ${entry.value}');
+    for (var entry in timelineEvents) {
+      print('   ${entry['status']}: ${entry['timestamp']}');
     }
 
     return Container(
@@ -269,17 +253,18 @@ class BookingDetailPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...sortedEntries.asMap().entries.map((entry) {
+          ...timelineEvents.asMap().entries.map((entry) {
             final index = entry.key;
             final statusEntry = entry.value;
-            final isLast = index == sortedEntries.length - 1;
-            final isCurrent = statusEntry.key == booking.status;
+            final isLast = index == timelineEvents.length - 1;
+            final isCurrent = statusEntry['status'] == booking.status;
 
             return _buildTimelineItem(
-              status: statusEntry.key,
-              timestamp: statusEntry.value,
+              status: statusEntry['status'] as String,
+              timestamp: statusEntry['timestamp'] as DateTime,
               isLast: isLast,
               isCurrent: isCurrent,
+              notes: statusEntry['notes'] as String?,
             );
           }).toList(),
         ],
@@ -292,6 +277,7 @@ class BookingDetailPage extends ConsumerWidget {
     required DateTime timestamp,
     required bool isLast,
     required bool isCurrent,
+    String? notes,
   }) {
     Color getStatusColor() {
       if (status == 'cancelled') return Colors.red;
@@ -366,6 +352,17 @@ class BookingDetailPage extends ConsumerWidget {
                       color: Colors.grey[600],
                     ),
                   ),
+                  if (notes != null && notes.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      notes,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                   if (_getStatusDescription(status).isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -579,26 +576,8 @@ class BookingDetailPage extends ConsumerWidget {
   Future<Map<String, dynamic>> _loadBookingDetails(
       ServiceBooking booking, WidgetRef ref) async {
     try {
-      final cars = ref.read(carsProvider);
-      debugPrint('Booking carId: ${booking.carId}');
-      debugPrint('Available cars: ${cars.map((c) => c.id).join(', ')}');
-      final car = cars.firstWhere(
-            (car) => car.id == booking.carId,
-        orElse: () => Car(
-          id: '',
-          brand: 'Mobil tidak ditemukan',
-          model: '',
-          year: 0,
-          plateNumber: '',
-          vin: 'N/A',
-          engineNumber: 'N/A',
-          initialKm: 0,
-          userId: '',
-          isMain: false,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
+      final car = await ref.read(carDaoProvider).getById(booking.carId);
+
 
       // Load promo if promoId is not null
       Promo? promo;
