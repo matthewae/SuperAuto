@@ -722,22 +722,22 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     try {
       final booking = state.firstWhere((b) => b.id == id);
 
-      // Get the promo ID from the existing booking
-      final promoId = booking.promoId;
+      // HAPUS BLOK PERHITUNGAN DISINI
+      // Kita tidak lagi menghitung diskon di Notifier.
+      // final promoId = booking.promoId;
 
-      // Calculate final cost with promo discount
-      double finalCost = totalCost ?? booking.totalCost ?? booking.estimatedCost;
-      if (promoId != null && totalCost != null) {
-        final discount = await _dao.calculateDiscount(id);
-        finalCost = totalCost - discount;
-      }
+      // double finalCost = totalCost ?? booking.totalCost ?? booking.estimatedCost;
+      // if (promoId != null && totalCost != null) {
+      //   final discount = await _dao.calculateDiscount(id);
+      //   finalCost = totalCost - discount;
+      // }
 
       final updatedBooking = booking.copyWith(
         status: status,
         jobs: jobs,
         parts: parts,
         km: km,
-        totalCost: finalCost,
+        totalCost: totalCost, // Gunakan totalCost langsung dari parameter
         adminNotes: adminNotes,
         updatedAt: DateTime.now(),
       );

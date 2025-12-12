@@ -368,8 +368,13 @@ class AdminBookingPage extends ConsumerWidget {
       kmController.text = currentBooking.km.toString();
     }
     if (currentBooking.totalCost != null) {
+      // Jika admin sudah pernah menetapkan totalCost, gunakan nilai itu.
       totalCostController.text = currentBooking.totalCost.toString();
+    } else if (currentBooking.estimatedCost != null) {
+      // Jika totalCost belum ada (masih null), gunakan estimatedCost sebagai nilai awal.
+      totalCostController.text = currentBooking.estimatedCost.toString();
     }
+
     if (currentBooking.adminNotes != null) {
       notesController.text = currentBooking.adminNotes!;
     }

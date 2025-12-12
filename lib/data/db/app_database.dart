@@ -94,7 +94,7 @@ class AppDatabase {
     totalCost REAL,
     createdAt TEXT NOT NULL,
     updatedAt TEXT,
-    promoId TEXT, -- Add this field
+    promoId TEXT, 
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (carId) REFERENCES cars(id) ON DELETE CASCADE
   )

@@ -140,51 +140,55 @@ class ServiceBookingDao {
 
   Future<int> updateStatusAndDetails(ServiceBooking booking) async {
     try {
-      // Calculate final cost with promo discount
-      double finalCost = booking.estimatedCost;
-      if (booking.promoId != null) {
-        final promoResult = await db.query(
-          'promo',
-          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
-          whereArgs: [
-            booking.promoId,
-            'service_discount',
-            DateTime.now().toIso8601String(),
-            DateTime.now().toIso8601String(),
-          ],
-        );
+      // HAPUS BLOK PERHITUNGAN DISINI
+      // Kita tidak lagi menghitung diskon di sini.
+      // totalCost yang diterima dari parameter 'booking' adalah harga final yang ditentukan admin.
+      // double finalCost = booking.estimatedCost;
+      // if (booking.promoId != null) {
+      //   final promoResult = await db.query(
+      //     'promo',
+      //     where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
+      //     whereArgs: [
+      //       booking.promoId,
+      //       'service_discount',
+      //       DateTime.now().toIso8601String(),
+      //       DateTime.now().toIso8601String(),
+      //     ],
+      //   );
 
-        if (promoResult.isNotEmpty) {
-          final promo = Promo.fromMap(promoResult.first);
-          final discount = promo.calculateDiscount(finalCost);
-          finalCost = finalCost - discount;
-        }
-      }
+      //   if (promoResult.isNotEmpty) {
+      //     final promo = Promo.fromMap(promoResult.first);
+      //     final discount = promo.calculateDiscount(finalCost);
+      //     finalCost = finalCost - discount;
+      //   }
+      // }
 
       // Create a new booking with the calculated final cost
-      final updatedBooking = booking.copyWith(totalCost: finalCost);
+      // final updatedBooking = booking.copyWith(totalCost: finalCost);
+      // GUNAKAN LANGSUNG 'booking' YANG DITERIMA SEBAGAI PARAMETER
 
       final result = await db.update(
         'service_bookings',
         {
-          'status': updatedBooking.status,
-          'jobs': jsonEncode(updatedBooking.jobs),
-          'parts': jsonEncode(updatedBooking.parts),
-          'km': updatedBooking.km,
-          'totalCost': updatedBooking.totalCost,
-          'adminNotes': updatedBooking.adminNotes,
+          'status': booking.status,
+          'jobs': jsonEncode(booking.jobs),
+          'parts': jsonEncode(booking.parts),
+          'km': booking.km,
+          'totalCost': booking.totalCost, // Simpan totalCost langsung tanpa perhitungan ulang
+          'adminNotes': booking.adminNotes,
           'updatedAt': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
-        whereArgs: [updatedBooking.id],
+        whereArgs: [booking.id],
       );
-      _log('Updated booking ${updatedBooking.id} with status ${updatedBooking.status} and final cost $finalCost');
+      _log('Updated booking ${booking.id} with status ${booking.status} and final cost ${booking.totalCost}');
       return result;
     } catch (e, stack) {
       _log('Error updating booking: $e\n$stack', isError: true);
       rethrow;
     }
   }
+
 
   Future<List<ServiceBooking>> getByStatus(String status) async {
     final db = await AppDatabase.instance.database;
