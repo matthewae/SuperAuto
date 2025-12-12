@@ -22,13 +22,27 @@ class BookingDetailPage extends ConsumerWidget {
     if (isAdmin) {
       final bookings = ref.watch(bookingsProvider);
       print('📋 BookingDetailPage (Admin): Loaded ${bookings.length} total bookings');
-      return _buildBookingList(bookings, context, ref);
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Detail Booking'),
+          centerTitle: true,
+        ),
+        body: _buildBookingList(bookings, context, ref),
+      );
     }
     // For regular users, use the FutureProvider
     else {
       final bookingsAsync = ref.watch(userBookingsProviderAlt);
       return Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           title: const Text('Detail Booking'),
           centerTitle: true,
         ),
@@ -566,6 +580,8 @@ class BookingDetailPage extends ConsumerWidget {
       ServiceBooking booking, WidgetRef ref) async {
     try {
       final cars = ref.read(carsProvider);
+      debugPrint('Booking carId: ${booking.carId}');
+      debugPrint('Available cars: ${cars.map((c) => c.id).join(', ')}');
       final car = cars.firstWhere(
             (car) => car.id == booking.carId,
         orElse: () => Car(

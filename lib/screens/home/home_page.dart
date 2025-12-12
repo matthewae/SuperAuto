@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/promo.dart';
+import '../../providers/app_providers.dart';
 
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -6,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../widgets/neumorphic_header.dart';
 
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   Widget _buildFeatureCard({
@@ -143,7 +146,7 @@ class HomePage extends StatelessWidget {
     );
   }
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Beranda'),
@@ -155,35 +158,75 @@ class HomePage extends StatelessWidget {
           children: [
           const NeumorphicHeader(title: "Selamat Datang", subtitle: "Jelajahi layanan kami"),
           const SizedBox(height: 12),
-          CarouselSlider(
-            options: CarouselOptions(
-              height: 180.0,
-              enlargeCenterPage: true,
-              autoPlay: true,
-              aspectRatio: 16 / 9,
-              autoPlayCurve: Curves.fastOutSlowIn,
-              enableInfiniteScroll: true,
-              autoPlayAnimationDuration: const Duration(milliseconds: 800),
-              viewportFraction: 0.8,
-            ),
-            items: ['promo_1.png', 'promo_2.png', 'promo_3.png'].map((i) {
-              return Builder(
-                builder: (BuildContext context) {
-                  return Container(
-                    width: MediaQuery.of(context).size.width,
-                    margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      borderRadius: BorderRadius.circular(8.0),
-                      image: DecorationImage(
-                        image: AssetImage('assets/images/$i'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+          FutureBuilder<List<Promo>>(
+            future: ref.read(promosProvider.notifier).getActivePromos(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              final promos = snapshot.data ?? [];
+
+              if (promos.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return CarouselSlider(
+                options: CarouselOptions(
+                  height: 180.0,
+                  enlargeCenterPage: true,
+                  autoPlay: true,
+                  aspectRatio: 16 / 9,
+                  autoPlayCurve: Curves.fastOutSlowIn,
+                  enableInfiniteScroll: true,
+                  autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                  viewportFraction: 0.8,
+                ),
+                items: promos.map((promo) {
+                  return Builder(
+                    builder: (BuildContext context) {
+                      return InkWell(
+                            onTap: () => context.push('/promo'),
+                            child: Container(
+                              width: MediaQuery.of(context).size.width,
+                              margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                borderRadius: BorderRadius.circular(8.0),
+                                image: DecorationImage(
+                                  image: AssetImage(promo.imageUrl ?? 'assets/images/default_promo.png'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  promo.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 5.0,
+                                        color: Colors.black,
+                                        offset: Offset(2.0, 2.0),
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          );
+                    },
                   );
-                },
+                }).toList(),
               );
-            }).toList(),
+            },
           ),
           const SizedBox(height: 12),
           Column(

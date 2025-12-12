@@ -75,6 +75,8 @@ class CartItem {
   final double price;
   final String? imageUrl;
   final DateTime createdAt;
+  final String? appliedPromoId;
+  final double discount;
 
   const CartItem({
     this.id,
@@ -85,6 +87,8 @@ class CartItem {
     required this.price,
     this.imageUrl,
     required this.createdAt,
+    this.appliedPromoId,
+    this.discount = 0.0,
   });
 
   CartItem copyWith({
@@ -96,6 +100,8 @@ class CartItem {
     double? price,
     String? imageUrl,
     DateTime? createdAt,
+    String? appliedPromoId,
+    double? discount,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -106,6 +112,8 @@ class CartItem {
       price: price ?? this.price,
       imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt ?? this.createdAt,
+      appliedPromoId: appliedPromoId ?? this.appliedPromoId,
+      discount: discount ?? this.discount,
     );
   }
 
@@ -119,6 +127,8 @@ class CartItem {
       'price': price,
       'imageUrl': imageUrl,
       'createdAt': createdAt.toIso8601String(),
+      'appliedPromoId': appliedPromoId,
+      'discount': discount,
     };
   }
 
@@ -132,6 +142,8 @@ class CartItem {
       price: (map['price'] as num).toDouble(),
       imageUrl: map['imageUrl'],
       createdAt: DateTime.parse(map['createdAt']),
+      appliedPromoId: map['appliedPromoId'],
+      discount: (map['discount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

@@ -39,13 +39,15 @@ class CartDao {
     );
 
     if (existing.isNotEmpty) {
-      // Update quantity if item exists
+      // Update quantity and promo details if item exists
       final currentQuantity = existing.first['quantity'] as int;
       await db.update(
         'cart_items',
         {
           'quantity': currentQuantity + item.quantity,
           'updatedAt': DateTime.now().toIso8601String(),
+          'appliedPromoId': item.appliedPromoId,
+          'discount': item.discount,
         },
         where: 'userId = ? AND productId = ?',
         whereArgs: [item.userId, item.productId],
@@ -58,6 +60,21 @@ class CartDao {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
+  }
+
+  /// Update promo details for all items in a user's cart
+  Future<void> updatePromoDetails(String userId, String? promoId, double discount) async {
+    final db = await _db;
+    await db.update(
+      'cart_items',
+      {
+        'appliedPromoId': promoId,
+        'discount': discount,
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      where: 'userId = ?',
+      whereArgs: [userId],
+    );
   }
 
   /// Update item quantity

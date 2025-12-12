@@ -9,6 +9,7 @@ class Promo {
   final DateTime end;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? imageUrl;
 
   const Promo({
     required this.id,
@@ -19,6 +20,7 @@ class Promo {
     required this.end,
     required this.createdAt,
     this.updatedAt,
+    this.imageUrl,
   });
 
   Map<String, dynamic> toMap() {
@@ -31,6 +33,7 @@ class Promo {
       'end': end.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'imageUrl': imageUrl,
     };
   }
 
@@ -44,6 +47,7 @@ class Promo {
       end: DateTime.parse(map['end'] as String),
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'] as String) : null,
+      imageUrl: map['imageUrl'] as String?,
     );
   }
 
@@ -97,6 +101,7 @@ class Promo {
     DateTime? end,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? imageUrl,
   }) {
     return Promo(
       id: id ?? this.id,
@@ -107,6 +112,7 @@ class Promo {
       end: end ?? this.end,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 

@@ -60,7 +60,7 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
       final userCars = ref.read(carsProvider);
       final hasMainCar = userCars.any((c) => c.isMain);
       if (!hasMainCar) {
-        await ref.read(carDaoProvider).updateMainCarStatus(car.id, true);
+        await ref.read(carDaoProvider).updateMainCarStatus(car.id, true, userId: currentUser.id);
         ref.invalidate(carsProvider);
       }
 

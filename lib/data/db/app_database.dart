@@ -124,6 +124,8 @@ class AppDatabase {
     imageUrl TEXT,
     createdAt TEXT NOT NULL,
     updatedAt TEXT,
+    appliedPromoId TEXT,
+    discount REAL DEFAULT 0.0,
     UNIQUE(userId, productId)
   )
 ''');

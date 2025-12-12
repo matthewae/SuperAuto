@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/promo.dart';
 import '../../providers/app_providers.dart';
 
@@ -69,9 +70,18 @@ class PromoListPage extends ConsumerWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isApplied
-                              ? () => ref.read(cartProvider.notifier).applyPromo(null)
-                              : () => ref.read(cartProvider.notifier).applyPromo(promo.id),
+                          onPressed: () {
+                            if (isApplied) {
+                              ref.read(cartProvider.notifier).applyPromo(null);
+                            } else {
+                              ref.read(cartProvider.notifier).applyPromo(promo.id);
+                              if (promo.type == 'service_discount') {
+                                context.push('/booking');
+                              } else if (promo.type == 'product_discount') {
+                                context.go('/catalog');
+                              }
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isApplied ? Colors.grey : null,
                           ),

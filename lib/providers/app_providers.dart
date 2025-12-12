@@ -374,9 +374,20 @@ class CartNotifier extends StateNotifier<CartState> {
     try {
       final cart = await _dao.getCart(_userId);
       // Convert Cart to CartState
+      String? promoId;
+      double promoDiscount = 0.0;
+
+      if (cart.items.isNotEmpty) {
+        // Assuming all items in the cart will have the same appliedPromoId and discount
+        // if a promo was applied to the cart.
+        promoId = cart.items.first.appliedPromoId;
+        promoDiscount = cart.items.first.discount;
+      }
+
       state = CartState(
         items: cart.items,
-        // Add other properties if needed
+        appliedPromoId: promoId,
+        discount: promoDiscount,
       );
     } catch (e) {
       print('Error loading cart: $e');
@@ -463,6 +474,12 @@ class CartNotifier extends StateNotifier<CartState> {
 
       final discount = promo.calculateDiscount(state.subtotal);
       state = state.copyWith(appliedPromoId: promoId, discount: discount);
+
+      // Persist promo details to database
+      await _dao.updatePromoDetails(_userId, promoId, discount);
+
+      // Reload cart to ensure consistency and update UI
+      await loadCart();
     } catch (e) {
       print('Error applying promo: $e');
       rethrow;
