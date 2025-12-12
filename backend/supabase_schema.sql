@@ -94,7 +94,4 @@
 --   end timestamp with time zone not null
 -- );
 
--- create table if not exists loyalty_points (
---   user_id uuid primary key references users(id) on delete cascade,
---   points int not null default 0
--- );
+

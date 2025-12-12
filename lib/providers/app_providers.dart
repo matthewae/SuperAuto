@@ -890,4 +890,3 @@ final seederProvider = FutureProvider<void>((ref) async {
   await seedDummyData(ref);
 });
 
-final loyaltyPointsProvider = StateProvider<int>((ref) => 0);

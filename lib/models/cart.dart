@@ -135,12 +135,7 @@ class CartItem {
     );
   }
 
-  /// Calculates loyalty points for this cart item
-  /// Returns the number of points earned (1 point per 10,000 in total price)
-  int calculateLoyaltyPoints() {
-    final totalPrice = price * quantity;
-    return (totalPrice / 10000).floor();
-  }
+
 
   /// Returns the total price of this cart item (price * quantity)
   double get totalPrice => price * quantity;

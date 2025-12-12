@@ -241,12 +241,7 @@ class HomePage extends StatelessWidget {
                   icon: Icons.card_giftcard,
                   onTap: () => context.push('/promo'),
                 ),
-                _buildActionButton(
-                  context: context,
-                  text: 'Rewards',
-                  icon: Icons.redeem,
-                  onTap: () => context.push('/loyalty'),
-                ),
+
               ],
             ),
           ],

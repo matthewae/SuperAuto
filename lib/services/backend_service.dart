@@ -11,7 +11,7 @@ abstract class BackendService {
   Future<void> upsertOrder(Map<String, dynamic> order);
   Future<void> upsertBundling(Map<String, dynamic> bundling);
   Future<void> upsertPromo(Map<String, dynamic> promo);
-  Future<void> upsertLoyalty(Map<String, dynamic> loyalty);
+
 }
 
 class SupabaseBackendService implements BackendService {
@@ -68,9 +68,5 @@ class SupabaseBackendService implements BackendService {
     await client.from('promos').upsert(promo);
   }
 
-  @override
-  Future<void> upsertLoyalty(Map<String, dynamic> loyalty) async {
-    await client.from('loyalty_points').upsert(loyalty);
-  }
-}
 
+}

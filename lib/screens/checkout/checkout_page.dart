@@ -117,9 +117,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         await (ref.read(ordersProvider.notifier) as dynamic).refresh();
       }
 
-      // Loyalty points
-      final pointsEarned = (cart.total ~/ 100000) * 10;
-      ref.read(loyaltyPointsProvider.notifier).state += pointsEarned;
+
 
       if (!mounted) return;
 
