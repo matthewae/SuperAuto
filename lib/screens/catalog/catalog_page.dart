@@ -31,13 +31,18 @@ class CatalogPage extends ConsumerWidget {
     final model = mainCar?.model;
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final searchQuery = ref.watch(searchQueryProvider);
-    final currentPage = ref.watch(currentPageProvider); // Added for pagination
+    final currentPage = ref.watch(currentPageProvider);
 
     final filtered = products.where((p) {
-      final matchesModel = model == null || p.compatibleModels.isEmpty || p.compatibleModels.contains(model);
+      // Check if product is compatible with all models or with the current car model
+      final matchesModel = model == null || 
+                          p.compatibleModels.isEmpty || 
+                          p.compatibleModels.any((m) => m == 'Semua Model') ||
+                          p.compatibleModels.any((m) => m.trim().toLowerCase() == model.toLowerCase());
+      
       final matchesCategory = selectedCategory == null || p.category == selectedCategory;
       final matchesSearch = p.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          p.description.toLowerCase().contains(searchQuery.toLowerCase());
+                          p.description.toLowerCase().contains(searchQuery.toLowerCase());
       return matchesModel && matchesCategory && matchesSearch;
     }).toList();
 
@@ -101,14 +106,32 @@ class CatalogPage extends ConsumerWidget {
                     content: Container(
                       height: 120,
                       alignment: Alignment.center,
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      child: Text(p.imageUrl == null ? 'No Image' : 'Image'),
+                      child: p.imageUrl != null
+                          ? Image.network(
+                        p.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.image_not_supported),
+                          );
+                        },
+                      )
+                          : const Center(
+                        child: Icon(Icons.image),
+                      ),
                     ),
                     buttonBar: GFButtonBar(
                       children: [
                         GFButton(
                           onPressed: () {
-                            ref.read(cartProvider.notifier).addItem(productId: p.id, productName: p.name, price: p.price);
+                            ref.read(cartProvider.notifier).addItem(
+                              productId: p.id,
+                              productName: p.name,
+                              price: p.price,
+                              imageUrl: p.imageUrl, // Tambahkan imageUrl
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('${p.name} ditambahkan ke keranjang!'),

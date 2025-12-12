@@ -93,21 +93,24 @@ class AuthService {
   Future<User?> login(String email, String password) async {
     try {
       final user = await _userDao.getUserByEmail(email);
-      if (user != null && user.password == password) {
-        // Save user session
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', user.idString);
-        await prefs.setString('current_user_email', email);
+      if (user != null) {
+        // Use verifyPassword to check the password
+        final isValid = await _userDao.verifyPassword(user.id, password);
+        if (isValid) {
+          // Save user session
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_id', user.idString);
+          await prefs.setString('current_user_email', email);
 
-        // Refresh bookings if we have a ref
-        if (_ref != null) {
-          _ref!.read(bookingsProvider.notifier).refresh();
+          // Refresh bookings if we have a ref
+          if (_ref != null) {
+            _ref!.read(bookingsProvider.notifier).refresh();
+          }
+
+          // Set current user
+          _currentUser = user;
+          return user;
         }
-
-        // Set current user
-        _currentUser = user;
-
-        return user;
       }
       return null;
     } catch (e) {

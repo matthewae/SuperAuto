@@ -19,6 +19,8 @@ class User {
   });
 
   String get idString => id?.toString() ?? '';
+  
+  bool get isAdmin => role.toLowerCase() == 'admin';
 
   Map<String, dynamic> toMap() {
     return {
@@ -26,8 +28,8 @@ class User {
       'email': email,
       'password': password,
       'name': name,
-      'createdAt': createdAt.toIso8601String(), // Konversi DateTime ke string
-      'updatedAt': updatedAt?.toIso8601String(), // Konversi DateTime ke string
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'role': role,
     };
   }

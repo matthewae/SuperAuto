@@ -3,10 +3,11 @@ import 'package:collection/collection.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-
+import 'package:intl/intl.dart';
 
 import '../../models/enums.dart';
 import '../../models/service_booking.dart';
+import '../../models/promo.dart';
 import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
 
@@ -33,10 +34,15 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   DateTime _date = DateTime.now().add(const Duration(days: 1));
 
   final TextEditingController _workshopController = TextEditingController(text: 'Bengkel Utama');
-  final TextEditingController _notesController = TextEditingController(); // Tambahkan controller untuk notes
+  final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _promoCodeController = TextEditingController();
 
   double _estimated = 500000;
   String? _selectedCarId;
+  String? _selectedPromoId;
+  double _discount = 0.0;
+  double _finalCost = 500000;
+  bool _showPromoSection = false;
 
   bool _isSubmitting = false;
   final _uuid = const Uuid();
@@ -58,7 +64,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     if (!_isInitialized) {
       // Pre-fill notes if returning from a previous booking attempt
       final args = ModalRoute.of(context)?.settings.arguments;
@@ -75,8 +81,76 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   @override
   void dispose() {
     _workshopController.dispose();
-    _notesController.dispose(); // Dispose notes controller
+    _notesController.dispose();
+    _promoCodeController.dispose();
     super.dispose();
+  }
+
+  // Calculate final cost based on selected promo
+  Future<void> _calculateFinalCost() async {
+    if (_selectedPromoId != null) {
+      try {
+        final promo = await ref.read(promoDaoProvider).getById(_selectedPromoId!);
+        if (promo != null && promo.isActive()) {
+          _discount = promo.calculateDiscount(_estimated);
+        } else {
+          _discount = 0.0;
+        }
+      } catch (e) {
+        print('Error calculating discount: $e');
+        _discount = 0.0;
+      }
+    } else {
+      _discount = 0.0;
+    }
+
+    setState(() {
+      _finalCost = _estimated - _discount;
+    });
+  }
+
+  // Apply promo code
+  Future<void> _applyPromoCode() async {
+    final promoCode = _promoCodeController.text.trim();
+    if (promoCode.isEmpty) return;
+
+    try {
+      final promos = await ref.read(promosProvider.notifier).getActivePromosByType('service_discount');
+      final matchingPromo = promos.firstWhere(
+            (promo) => promo.name.toLowerCase() == promoCode.toLowerCase(),
+        orElse: () => Promo(
+          id: '',
+          name: '',
+          type: '',
+          value: 0,
+          start: DateTime.now(),
+          end: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      if (matchingPromo.id.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kode promo tidak valid')),
+        );
+        return;
+      }
+
+      setState(() {
+        _selectedPromoId = matchingPromo.id;
+        _promoCodeController.clear();
+      });
+
+      await _calculateFinalCost();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Promo ${matchingPromo.name} berhasil diterapkan')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
   Future<void> _submitBooking() async {
@@ -95,7 +169,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         throw Exception('Anda belum menambahkan mobil. Silakan tambahkan mobil terlebih dahulu.');
       }
 
-      // Find the selected car
+      // Find selected car
       final selectedCar = userCars.firstWhere(
             (car) => car.id == _selectedCarId,
         orElse: () => throw Exception('Mobil tidak ditemukan'),
@@ -112,10 +186,11 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         serviceType: _type.toString().split('.').last,
         scheduledAt: scheduled,
         estimatedCost: _estimated,
-        notes: _notesController.text, // Gunakan notes dari controller
+        notes: _notesController.text,
         status: 'pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        promoId: _selectedPromoId,
       );
 
       // Save booking
@@ -133,7 +208,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking berhasil dibuat')),
         );
-
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -195,9 +270,7 @@ class _BookingPageState extends ConsumerState<BookingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ---------------------------------------
-              // PILIH MOBIL
-              // ---------------------------------------
+
               if (userCars.isNotEmpty)
                 Neumorphic(
                   margin: const EdgeInsets.symmetric(vertical: 8),
@@ -250,9 +323,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // JENIS SERVIS
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -289,6 +359,19 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                       onChanged: (v) {
                         setState(() {
                           _type = v ?? _type;
+                          // Update estimated cost based on service type
+                          switch (_type) {
+                            case ServiceType.routine:
+                              _estimated = 500000.0;
+                              break;
+                            case ServiceType.major:
+                              _estimated = 1000000.0;
+                              break;
+                            case ServiceType.partReplacement:
+                              _estimated = 750000.0;
+                              break;
+                          }
+                          _calculateFinalCost();
                         });
                       },
                     ),
@@ -298,9 +381,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // BENGKEL
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -328,9 +408,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // TANGGAL
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -371,9 +448,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // JAM
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -398,9 +472,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // ESTIMASI BIAYA
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -427,8 +498,12 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                       ),
                       Slider(
                         value: _estimated,
-                        onChanged: (v) =>
-                            setState(() => _estimated = v),
+                        onChanged: (v) {
+                          setState(() {
+                            _estimated = v;
+                          });
+                          _calculateFinalCost();
+                        },
                         min: 100000,
                         max: 5000000,
                         divisions: 49,
@@ -442,8 +517,245 @@ class _BookingPageState extends ConsumerState<BookingPage> {
               const SizedBox(height: 8),
 
               // ---------------------------------------
-              // NOTES (TAMBAHKAN BAGIAN INI)
+              // PROMO SECTION
               // ---------------------------------------
+              Neumorphic(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                style: NeumorphicStyle(
+                  shape: NeumorphicShape.flat,
+                  boxShape: NeumorphicBoxShape.roundRect(
+                    BorderRadius.circular(12),
+                  ),
+                  depth: 2,
+                  lightSource: LightSource.topLeft,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Promo',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _showPromoSection = !_showPromoSection;
+                              });
+                            },
+                            child: Text(_showPromoSection ? 'Sembunyikan' : 'Pilih Promo'),
+                          ),
+                        ],
+                      ),
+                      if (_showPromoSection) ...[
+                        const SizedBox(height: 8),
+                        // Promo Code Input
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _promoCodeController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Kode Promo',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _applyPromoCode,
+                              child: const Text('Gunakan'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Available Promos
+                        FutureBuilder<List<Promo>>(
+                          future: ref.read(promosProvider.notifier).getActivePromosByType('service_discount'),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+
+                            if (snapshot.hasError || !snapshot.hasData) {
+                              return const Text('Tidak ada promo tersedia');
+                            }
+
+                            final promos = snapshot.data!;
+                            if (promos.isEmpty) {
+                              return const Text('Tidak ada promo tersedia');
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Promo Tersedia:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                ...promos.map((promo) {
+                                  final isSelected = _selectedPromoId == promo.id;
+                                  return InkWell(
+                                    onTap: () async {
+                                      setState(() {
+                                        _selectedPromoId = isSelected ? null : promo.id;
+                                      });
+                                      await _calculateFinalCost();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Theme.of(context).primaryColor
+                                              : Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: isSelected
+                                            ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isSelected
+                                                ? Icons.radio_button_checked
+                                                : Icons.radio_button_unchecked,
+                                            color: isSelected
+                                                ? Theme.of(context).primaryColor
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  promo.name,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Berlaku hingga ${DateFormat('dd MMM yyyy').format(promo.end)}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Text(
+                                            promo.formattedValue,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Neumorphic(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                style: NeumorphicStyle(
+                  shape: NeumorphicShape.flat,
+                  boxShape: NeumorphicBoxShape.roundRect(
+                    BorderRadius.circular(12),
+                  ),
+                  depth: 2,
+                  lightSource: LightSource.topLeft,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Estimasi Biaya',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text('Rp ${_estimated.toStringAsFixed(0)}'),
+                        ],
+                      ),
+                      if (_discount > 0) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Diskon',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '-Rp ${_discount.toStringAsFixed(0)}',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const Divider(),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total Biaya',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            'Rp ${_finalCost.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -473,9 +785,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 16),
 
-              // ---------------------------------------
-              // TOMBOL BOOKING
-              // ---------------------------------------
               GFButton(
                 onPressed: _isSubmitting ? null : _submitBooking,
                 icon: const Icon(Icons.book_online),

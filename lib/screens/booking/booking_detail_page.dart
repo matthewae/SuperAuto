@@ -5,6 +5,7 @@ import '../../models/service_booking.dart';
 import '../../models/car.dart';
 import '../../providers/app_providers.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import '../../models/promo.dart';
 
 class BookingDetailPage extends ConsumerWidget {
   final String bookingId;
@@ -15,24 +16,35 @@ class BookingDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     initializeDateFormatting('id_ID', null);
 
-    final bookingsState = ref.watch(userBookingsProviderAlt);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Booking'),
-        centerTitle: true,
-      ),
-      body: bookingsState.when(
-        data: (bookings) {
-          print('📋 BookingDetailPage: Loaded ${bookings.length} bookings for current user');
-          return _buildBookingList(bookings, context, ref);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) {
-          print('❌ BookingDetailPage Error: $error');
-          return Center(child: Text('Error: $error'));
-        },
-      ),
-    );
+    final isAdmin = ref.watch(authProvider).valueOrNull?.isAdmin ?? false;
+
+    // For admin, we'll use the StateNotifier directly
+    if (isAdmin) {
+      final bookings = ref.watch(bookingsProvider);
+      print('📋 BookingDetailPage (Admin): Loaded ${bookings.length} total bookings');
+      return _buildBookingList(bookings, context, ref);
+    }
+    // For regular users, use the FutureProvider
+    else {
+      final bookingsAsync = ref.watch(userBookingsProviderAlt);
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Detail Booking'),
+          centerTitle: true,
+        ),
+        body: bookingsAsync.when(
+          data: (bookings) {
+            print('📋 BookingDetailPage: Loaded ${bookings.length} bookings for current user');
+            return _buildBookingList(bookings, context, ref);
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) {
+            print('❌ BookingDetailPage Error: $error');
+            return Center(child: Text('Error: $error'));
+          },
+        ),
+      );
+    }
   }
 
   Widget _buildBookingList(List<ServiceBooking> bookings, BuildContext context, WidgetRef ref) {
@@ -62,6 +74,8 @@ class BookingDetailPage extends ConsumerWidget {
 
         final details = snapshot.data!;
         final car = details['car'] as Car?;
+        final promo = details['promo'] as Promo?;
+        final finalCost = details['finalCost'] as double? ?? booking.totalCost ?? booking.estimatedCost ?? 0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -103,9 +117,33 @@ class BookingDetailPage extends ConsumerWidget {
                 ),
               _buildDetailCard(
                 icon: Icons.attach_money,
-                title: 'Perkiraan Biaya',
+                title: 'Biaya Estimasi',
                 value: 'Rp${booking.estimatedCost?.toStringAsFixed(0) ?? '0'}',
               ),
+              if (booking.totalCost != null) ...[
+                _buildDetailCard(
+                  icon: Icons.attach_money,
+                  title: 'Total Biaya',
+                  value: 'Rp${booking.totalCost!.toStringAsFixed(0)}',
+                ),
+                if (promo != null) ...[
+                  _buildDetailCard(
+                    icon: Icons.local_offer,
+                    title: 'Promo',
+                    value: '${promo.name} (${promo.formattedValue})',
+                  ),
+                  _buildDetailCard(
+                    icon: Icons.money_off,
+                    title: 'Diskon',
+                    value: '-Rp${promo.calculateDiscount(booking.totalCost!).toStringAsFixed(0)}',
+                  ),
+                  _buildDetailCard(
+                    icon: Icons.attach_money,
+                    title: 'Total Setelah Diskon',
+                    value: 'Rp${finalCost.toStringAsFixed(0)}',
+                  ),
+                ],
+              ],
               if (booking.isPickupService)
                 _buildDetailCard(
                   icon: Icons.location_on,
@@ -545,9 +583,18 @@ class BookingDetailPage extends ConsumerWidget {
           updatedAt: DateTime.now(),
         ),
       );
-      return {'car': car};
+
+      // Load promo if promoId is not null
+      Promo? promo;
+      double? finalCost;
+      if (booking.promoId != null) {
+        promo = await ref.read(promoDaoProvider).getById(booking.promoId!);
+        finalCost = await ref.read(bookingsProvider.notifier).calculateFinalCost(booking.id);
+      }
+
+      return {'car': car, 'promo': promo, 'finalCost': finalCost};
     } catch (e) {
-      debugPrint('Error loading car details: $e');
+      debugPrint('Error loading booking details: $e');
       return {
         'car': Car(
           id: '',
@@ -562,7 +609,9 @@ class BookingDetailPage extends ConsumerWidget {
           isMain: false,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-        )
+        ),
+        'promo': null,
+        'finalCost': null
       };
     }
   }

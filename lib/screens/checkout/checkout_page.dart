@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 
 import '../../providers/app_providers.dart';
 import '../../models/order.dart';
+import '../../models/promo.dart';
 import '../../data/dao/order_dao.dart';
 import '../../data/dao/cart_dao.dart';
 import '../../widgets/neumorphic_header.dart';
@@ -24,14 +26,38 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _selectedPaymentMethod;
   String? _selectedShippingMethod;
   bool _isLoading = false;
+  String? _appliedPromoId;
+  Promo? _appliedPromo;
 
   final List<String> _paymentMethods = ['GoPay', 'OVO', 'Dana', 'Bank Transfer', 'COD'];
   final List<String> _shippingMethods = ['Reguler', 'Express', 'Same Day'];
 
   @override
+  void initState() {
+    super.initState();
+    _loadAppliedPromo();
+  }
+
+  @override
   void dispose() {
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAppliedPromo() async {
+    final cart = ref.read(cartProvider);
+    if (cart.appliedPromoId != null) {
+      final promo = await ref.read(promoDaoProvider).getById(cart.appliedPromoId!);
+      if (promo != null && promo.isActive()) {
+        setState(() {
+          _appliedPromoId = cart.appliedPromoId;
+          _appliedPromo = promo;
+        });
+      } else {
+        // If promo is not valid, clear it
+        await ref.read(cartProvider.notifier).applyPromo(null);
+      }
+    }
   }
 
   Future<void> _placeOrder() async {
@@ -64,13 +90,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
       }).toList();
 
-      // Create order with items - TAMBAHKAN userName DI SINI
+      // Create order with items
       final order = Order(
         id: orderId,
         userId: user.id!,
-        userName: user.name, // PASTIKAN BARIS INI ADA
+        userName: user.name,
         items: items,
-        total: cart.subtotal,
+        total: cart.total,
         createdAt: DateTime.now(),
         status: 'pending',
         paymentMethod: _selectedPaymentMethod,
@@ -92,7 +118,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
 
       // Loyalty points
-      final pointsEarned = (cart.subtotal ~/ 100000) * 10;
+      final pointsEarned = (cart.total ~/ 100000) * 10;
       ref.read(loyaltyPointsProvider.notifier).state += pointsEarned;
 
       if (!mounted) return;
@@ -111,7 +137,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
-    final total = cart.subtotal;
+    final subtotal = cart.subtotal;
+    final discount = cart.discount;
+    final total = cart.total;
 
     return Scaffold(
       appBar: GFAppBar(
@@ -226,11 +254,89 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
             const Divider(),
 
-            // Total
+            // Applied Promo
+            if (_appliedPromo != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_offer, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _appliedPromo!.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Berlaku hingga ${DateFormat('dd MMM yyyy').format(_appliedPromo!.end)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '-Rp ${discount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // Price Summary
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Subtotal'),
+                Text('Rp ${subtotal.toStringAsFixed(0)}'),
+              ],
+            ),
+            if (discount > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Diskon'),
+                  Text(
+                    '-Rp ${discount.toStringAsFixed(0)}',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Biaya Pengiriman'),
+                Text('Rp ${_selectedShippingMethod == 'Reguler' ? '10000' : _selectedShippingMethod == 'Express' ? '20000' : '30000'}'),
+              ],
+            ),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 Text(
                   'Rp ${total.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

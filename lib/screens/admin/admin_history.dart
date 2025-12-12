@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../models/order.dart';
 import '../../models/service_booking.dart';
+import '../../models/user.dart';
+import '../../models/car.dart';
+import '../booking/booking_detail_page.dart';
 import 'package:flutter/foundation.dart'; // for debugPrint
 
 class AdminHistoryPage extends ConsumerStatefulWidget {
@@ -23,7 +27,7 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(allOrdersProvider);
     final bookings = ref.watch(bookingsProvider);
-    
+
     // Filter services based on status
     final serviceHistory = bookings.where((b) {
       if (showCompletedServices && b.status == "completed") return true;
@@ -65,9 +69,6 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
     );
   }
 
-  // ===========================================================
-  // =============== TAB PRODUK (ORDERS) =======================
-  // ===========================================================
   Widget _buildOrderTab(List<Order> orders) {
     return Column(
       children: [
@@ -164,9 +165,42 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
     }).toList();
   }
 
-  // ===========================================================
-  // =============== TAB SERVIS (BOOKINGS) ======================
-  // ===========================================================
+
+  Future<Map<String, dynamic>> _getUserAndCarDetails(
+      WidgetRef ref,
+      BuildContext context,
+      String? userId,
+      String? carId,
+      ) async {
+    try {
+      if (userId == null || carId == null) {
+        return {
+          'userName': 'Data tidak lengkap',
+          'userPhone': '-',
+          'carInfo': 'Data kendaraan tidak tersedia',
+        };
+      }
+
+      final user = await ref.read(userDaoProvider).getUserById(userId);
+      final car = await ref.read(carDaoProvider).getById(carId);
+
+      return {
+        'userName': user?.name ?? 'Pelanggan',
+        'userPhone': user?.email ?? '-',
+        'carInfo': car != null
+            ? '${car.brand} ${car.model} (${car.plateNumber})'
+            : 'Mobil tidak ditemukan',
+      };
+    } catch (e) {
+      debugPrint('❌ Error in _getUserAndCarDetails: $e');
+      return {
+        'userName': 'Error memuat data',
+        'userPhone': '-',
+        'carInfo': 'Error memuat data mobil',
+      };
+    }
+  }
+
   Widget _buildServiceTab(List<ServiceBooking> bookings) {
     return Column(
       children: [
@@ -176,30 +210,182 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
           child: bookings.isEmpty
               ? const Center(child: Text("Belum ada servis selesai/batal"))
               : ListView.builder(
-            itemCount: bookings.length,
-            itemBuilder: (context, index) {
-              final b = bookings[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(
-                      "${_formatServiceType(b.serviceType)} • ${_getStatusText(b.status)}"),
-                  subtitle: Text(
-                    "Total: Rp ${(b.totalCost ?? b.estimatedCost).toStringAsFixed(0)}\n"
-                        "${_formatDate(b.scheduledAt)}",
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    context.go('/service-detail/${b.id}');
+                  padding: const EdgeInsets.all(16),
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) {
+                    final booking = bookings[index];
+                    final formattedDate = DateFormat('dd MMM yyyy HH:mm').format(booking.scheduledAt);
+
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: _getUserAndCarDetails(
+                        ref,
+                        context,
+                        booking.userId,
+                        booking.carId,
+                      ),
+                      builder: (context, snapshot) {
+                        final details = snapshot.data ?? {
+                          'userName': 'Loading...',
+                          'userPhone': '-',
+                          'carInfo': 'Mengambil data...',
+                        };
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Booking #${booking.id.substring(0, 8)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            details['userName']!,
+                                            style: const TextStyle(fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(booking.status),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _getStatusDisplayName(booking.status),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                _buildInfoRow('Nama', details['userName']!),
+                                _buildInfoRow('E-Mail', details['userPhone']!),
+                                _buildInfoRow('Mobil', details['carInfo']!),
+                                const Divider(height: 20),
+                                _buildInfoRow('Layanan', _formatServiceType(booking.serviceType)),
+                                _buildInfoRow('Tanggal', formattedDate),
+                                _buildInfoRow(
+                                  'Biaya',
+                                  'Rp${(booking.totalCost ?? booking.estimatedCost ?? 0).toStringAsFixed(0)}',
+                                ),
+                                if (booking.notes?.isNotEmpty ?? false) ...[
+                                  const SizedBox(height: 4),
+                                  _buildInfoRow('Catatan', booking.notes!, isMultiline: true),
+                                ],
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => BookingDetailPage(bookingId: booking.id),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Theme.of(context).primaryColor,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      ),
+                                      child: const Text('Lihat Detail'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
                   },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
+  }
+
+  Widget _buildInfoRow(String label, String value, {bool isMultiline = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const Text(':  ', style: TextStyle(fontSize: 14)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+              maxLines: isMultiline ? 3 : 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      case 'in_progress':
+        return Colors.blue;
+      case 'confirmed':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusDisplayName(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      case 'in_progress':
+        return 'Dalam Proses';
+      case 'confirmed':
+        return 'Dikonfirmasi';
+      default:
+        return status;
+    }
   }
 
   Widget _buildServiceFilterChips() {

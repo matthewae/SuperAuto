@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../db/app_database.dart';
 import '../../models/user.dart';
 import 'package:sqflite/sqflite.dart';
@@ -73,23 +74,33 @@ class UserDao {
     return user.copyWith(updatedAt: DateTime.now());
   }
 
-  // Tambahkan metode untuk verifikasi password
+  // Verifikasi password untuk user dengan ID tertentu
   Future<bool> verifyPassword(String userId, String password) async {
+    try {
+      // Ambil user berdasarkan ID
+      final user = await getUserById(userId);
+      if (user == null) return false;
+
+      // Untuk saat ini, bandingkan password secara langsung
+      // Di aplikasi produksi, sebaiknya gunakan hashing password yang aman seperti bcrypt
+      return user.password == password;
+    } catch (e) {
+      debugPrint('Error verifying password: $e');
+      return false;
+    }
+  }
+
+  Future<List<User>> getAllUsers() async {
     final db = await AppDatabase.instance.database;
-    final results = await db.query(
-      'users',
-      where: 'id = ? AND password = ?',
-      whereArgs: [userId, password],
-    );
-    return results.isNotEmpty;
+    final users = await db.query('users');
+    return users.map((user) => User.fromMap(user)).toList();
   }
 
   Future<void> listAllUsers() async {
-    final db = await AppDatabase.instance.database;
-    final users = await db.query('users');
+    final users = await getAllUsers();
     print('👥 All users in database:');
     for (var user in users) {
-      print('  - ID: ${user['id']}, Email: ${user['email']}, Name: ${user['name']}');
+      print('  - ID: ${user.id}, Email: ${user.email}, Name: ${user.name}');
     }
   }
 }

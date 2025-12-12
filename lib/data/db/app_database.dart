@@ -39,6 +39,7 @@ class AppDatabase {
   initialKm INTEGER NOT NULL,
   userId TEXT NOT NULL,
   isMain INTEGER NOT NULL DEFAULT 0,
+  imageUrl TEXT,
   createdAt TEXT,
   updatedAt TEXT,
   FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
@@ -93,35 +94,24 @@ class AppDatabase {
     totalCost REAL,
     createdAt TEXT NOT NULL,
     updatedAt TEXT,
+    promoId TEXT, -- Add this field
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (carId) REFERENCES cars(id) ON DELETE CASCADE
-      )
-    ''');
+  )
+''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS service_history (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        carId TEXT NOT NULL,
-        date TEXT NOT NULL,
-        km INTEGER NOT NULL,
-        jobs TEXT NOT NULL,
-        parts TEXT NOT NULL,
-        totalCost REAL NOT NULL,
-        serviceType TEXT,
-        notes TEXT,
-        createdAt TEXT NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS promo (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        description TEXT,
-        discount REAL
-      );
-    ''');
+  CREATE TABLE IF NOT EXISTS promo (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'service_discount' or 'product_discount'
+    value REAL NOT NULL, -- percentage (0-1) or fixed amount (>1)
+    start TEXT NOT NULL, -- ISO8601 string
+    end TEXT NOT NULL, -- ISO8601 string
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT
+  );
+''');
 
     await db.execute('''
   CREATE TABLE IF NOT EXISTS cart_items (

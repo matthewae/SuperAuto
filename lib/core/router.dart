@@ -180,7 +180,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/promo',
         name: 'promo',
-        builder: (context, state) => const PromoPage(),
+        builder: (context, state) => const PromoListPage(),
       ),
       GoRoute(
         path: '/edit-profile',

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../models/product.dart';
 import 'product_form_dialog.dart';
+import 'package:getwidget/getwidget.dart';
 
 class ProductItem extends ConsumerWidget {
   final Product product;
@@ -11,26 +12,33 @@ class ProductItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      title: Text(product.name, style: Theme.of(context).textTheme.titleMedium),
-      subtitle: Text("Rp ${product.price} • ${product.category.name}", style: Theme.of(context).textTheme.bodyMedium),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => ProductFormDialog(existing: product),
-              );
+    return Card(
+      child: ListTile(
+        leading: SizedBox(
+          width: 50,
+          height: 50,
+          child: product.imageUrl != null
+              ? Image.network(
+            product.imageUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.image_not_supported);
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => ref.read(productsProvider.notifier).delete(product.id),
-          ),
-        ],
+          )
+              : const Icon(Icons.image),
+        ),
+        title: Text(product.name),
+        subtitle: Text('Rp ${product.price.toStringAsFixed(0)}'),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () {
+            // Buka dialog edit
+            showDialog(
+              context: context,
+              builder: (_) => ProductFormDialog(existing: product),
+            );
+          },
+        ),
       ),
     );
   }

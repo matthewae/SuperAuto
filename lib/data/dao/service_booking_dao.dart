@@ -3,13 +3,14 @@ import '../../models/service_booking.dart';
 import 'dart:developer' as developer;
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
+import '../../models/promo.dart';
 
 class ServiceBookingDao {
-
   final Database db;
 
   ServiceBookingDao(this.db);
   static const String _tableName = 'service_bookings';
+
   void _log(String message, {bool isError = false}) {
     if (isError) {
       developer.log('❌ ServiceBookingDao: $message', error: message);
@@ -17,15 +18,41 @@ class ServiceBookingDao {
       developer.log('ℹ️ ServiceBookingDao: $message');
     }
   }
+
   Future<int> insert(ServiceBooking booking) async {
     try {
       final db = await AppDatabase.instance.database;
+
+      // Calculate final cost with promo discount
+      double finalCost = booking.estimatedCost;
+      if (booking.promoId != null) {
+        final promoResult = await db.query(
+          'promo',
+          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
+          whereArgs: [
+            booking.promoId,
+            'service_discount',
+            DateTime.now().toIso8601String(),
+            DateTime.now().toIso8601String(),
+          ],
+        );
+
+        if (promoResult.isNotEmpty) {
+          final promo = Promo.fromMap(promoResult.first);
+          final discount = promo.calculateDiscount(finalCost);
+          finalCost = finalCost - discount;
+        }
+      }
+
+      // Create a new booking with the calculated final cost
+      final updatedBooking = booking.copyWith(totalCost: finalCost);
+
       final id = await db.insert(
         _tableName,
-        booking.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,  // Langsung pakai
+        updatedBooking.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      _log('Inserted booking ${booking.id}');
+      _log('Inserted booking ${booking.id} with final cost $finalCost');
       return id;
     } catch (e, stack) {
       _log('Error inserting booking: $e\n$stack', isError: true);
@@ -37,8 +64,8 @@ class ServiceBookingDao {
     try {
       final db = await AppDatabase.instance.database;
       final results = await db.query(
-          _tableName,
-          orderBy: 'scheduledAt DESC'
+        _tableName,
+        orderBy: 'scheduledAt DESC',
       );
       _log('Fetched ${results.length} bookings');
       return results.map((e) => ServiceBooking.fromMap(e)).toList();
@@ -54,7 +81,7 @@ class ServiceBookingDao {
       final results = await db.query(_tableName);
       _log('=== BOOKINGS IN DATABASE (${results.length}) ===');
       for (var item in results) {
-        _log('Booking: ${item['id']} - ${item['status']}');
+        _log('Booking: ${item['id']} - ${item['status']} - Est: ${item['estimatedCost']} - Total: ${item['totalCost']}');
       }
     } catch (e) {
       _log('Error printing bookings: $e', isError: true);
@@ -111,31 +138,54 @@ class ServiceBookingDao {
     );
   }
 
-
-
   Future<int> updateStatusAndDetails(ServiceBooking booking) async {
     try {
+      // Calculate final cost with promo discount
+      double finalCost = booking.estimatedCost;
+      if (booking.promoId != null) {
+        final promoResult = await db.query(
+          'promo',
+          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
+          whereArgs: [
+            booking.promoId,
+            'service_discount',
+            DateTime.now().toIso8601String(),
+            DateTime.now().toIso8601String(),
+          ],
+        );
+
+        if (promoResult.isNotEmpty) {
+          final promo = Promo.fromMap(promoResult.first);
+          final discount = promo.calculateDiscount(finalCost);
+          finalCost = finalCost - discount;
+        }
+      }
+
+      // Create a new booking with the calculated final cost
+      final updatedBooking = booking.copyWith(totalCost: finalCost);
+
       final result = await db.update(
         'service_bookings',
         {
-          'status': booking.status,
-          'jobs': jsonEncode(booking.jobs),
-          'parts': jsonEncode(booking.parts),
-          'km': booking.km,
-          'totalCost': booking.totalCost,
-          'adminNotes': booking.adminNotes,
+          'status': updatedBooking.status,
+          'jobs': jsonEncode(updatedBooking.jobs),
+          'parts': jsonEncode(updatedBooking.parts),
+          'km': updatedBooking.km,
+          'totalCost': updatedBooking.totalCost,
+          'adminNotes': updatedBooking.adminNotes,
           'updatedAt': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
-        whereArgs: [booking.id],
+        whereArgs: [updatedBooking.id],
       );
-      _log('Updated booking ${booking.id} with status ${booking.status}');
+      _log('Updated booking ${updatedBooking.id} with status ${updatedBooking.status} and final cost $finalCost');
       return result;
     } catch (e, stack) {
       _log('Error updating booking: $e\n$stack', isError: true);
       rethrow;
     }
   }
+
   Future<List<ServiceBooking>> getByStatus(String status) async {
     final db = await AppDatabase.instance.database;
     final results = await db.query(
@@ -195,5 +245,77 @@ class ServiceBookingDao {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // Method to calculate final cost with promo discount
+  Future<double> calculateFinalCost(String bookingId) async {
+    try {
+      final booking = await getById(bookingId);
+      if (booking == null) return 0.0;
+
+      // Use totalCost if available, otherwise use estimatedCost
+      double baseCost = booking.totalCost ?? booking.estimatedCost ?? 0.0;
+      
+      // If totalCost is already set, return it directly without applying promo
+      if (booking.totalCost != null) {
+        return baseCost;
+      }
+
+      // Only apply promo if we're using estimatedCost
+      if (booking.promoId != null && baseCost > 0) {
+        final db = await AppDatabase.instance.database;
+        final result = await db.query(
+          'promo',
+          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
+          whereArgs: [
+            booking.promoId,
+            'service_discount',
+            DateTime.now().toIso8601String(),
+            DateTime.now().toIso8601String(),
+          ],
+        );
+
+        if (result.isNotEmpty) {
+          final promo = Promo.fromMap(result.first);
+          final discount = promo.calculateDiscount(baseCost);
+          baseCost = baseCost - discount;
+        }
+      }
+
+      return baseCost;
+    } catch (e, stack) {
+      _log('Error calculating final cost: $e\n$stack', isError: true);
+      rethrow;
+    }
+  }
+
+  // Method to calculate discount amount
+  Future<double> calculateDiscount(String bookingId) async {
+    try {
+      final booking = await getById(bookingId);
+      if (booking == null || booking.estimatedCost == null || booking.promoId == null) return 0.0;
+
+      final db = await AppDatabase.instance.database;
+      final result = await db.query(
+        'promo',
+        where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
+        whereArgs: [
+          booking.promoId,
+          'service_discount',
+          DateTime.now().toIso8601String(),
+          DateTime.now().toIso8601String(),
+        ],
+      );
+
+      if (result.isNotEmpty) {
+        final promo = Promo.fromMap(result.first);
+        return promo.calculateDiscount(booking.estimatedCost!);
+      }
+
+      return 0.0;
+    } catch (e, stack) {
+      _log('Error calculating discount: $e\n$stack', isError: true);
+      rethrow;
+    }
   }
 }

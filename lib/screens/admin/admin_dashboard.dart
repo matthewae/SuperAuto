@@ -4,6 +4,7 @@ import 'admin_booking.dart';
 import 'admin_history.dart';
 import 'admin_profile.dart';
 import 'admin_order_list_page.dart';
+import 'admin_promo_page.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -15,11 +16,14 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = 0;
 
+  // List of screens in the admin dashboard
+  // Make sure the order matches the navigation indices
   final List<Widget> screens = [
     AdminProducts(),
     AdminOrderListPage(),
     AdminBookingPage(),
     AdminHistoryPage(),
+    AdminPromoPage(),
     AdminProfilePage(),
   ];
 
@@ -39,14 +43,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // TODO: Implement notification page
-            },
-          ),
-        ],
+        // actions: [
+        //   // IconButton(
+        //   //   icon: const Icon(Icons.notifications),
+        //   //   onPressed: () {
+        //   //   },
+        //   // ),
+        // ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -105,8 +108,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              leading: const Icon(Icons.local_offer),
+              title: const Text('Promo'),
               onTap: () {
                 Navigator.pop(context); // Close the drawer
                 setState(() {
@@ -114,13 +117,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 });
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                setState(() {
+                  _selectedIndex = 5;
+                });
+              },
+            ),
           ],
         ),
       ),
-      body: SafeArea(child: screens[_selectedIndex]),
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: screens,
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        onDestinationSelected: (i) {
+          print('Navigating to index: $i');
+          setState(() => _selectedIndex = i);
+        },
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         elevation: 4.0,
         destinations: const [
@@ -128,6 +149,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           NavigationDestination(icon: Icon(Icons.receipt), label: "Orders"),
           NavigationDestination(icon: Icon(Icons.calendar_month), label: "Booking"),
           NavigationDestination(icon: Icon(Icons.history), label: "History"),
+          NavigationDestination(icon: Icon(Icons.local_offer), label: "Promo"),
           NavigationDestination(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

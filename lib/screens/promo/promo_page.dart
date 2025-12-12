@@ -1,45 +1,88 @@
 import 'package:flutter/material.dart';
-import 'package:getwidget/getwidget.dart';
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../models/promo.dart';
 import '../../providers/app_providers.dart';
-import '../../widgets/neumorphic_header.dart';
 
-class PromoPage extends ConsumerWidget {
-  const PromoPage({super.key});
+class PromoListPage extends ConsumerWidget {
+  const PromoListPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final promos = ref.watch(promosProvider);
-    final applied = ref.watch(cartProvider).appliedPromoId;
     return Scaffold(
-      appBar: GFAppBar(title: const Text('Promo & Voucher')),
-      body: ListView.builder(
-        itemCount: promos.length + 1,
-        itemBuilder: (context, i) {
-          if (i == 0) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: NeumorphicHeader(title: 'Promo Aktif', subtitle: 'Klik untuk menerapkan ke cart'),
-            );
+      appBar: AppBar(
+        title: const Text('Promo Tersedia'),
+      ),
+      body: FutureBuilder<List<Promo>>(
+        future: ref.read(promosProvider.notifier).getActivePromos(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
-          final p = promos[i - 1];
-          final isApplied = applied == p.id;
-          return GFCard(
-            title: GFListTile(
-              titleText: p.name,
-              subTitleText: '${p.type} • ${p.value}%',
-              icon: isApplied ? const Icon(Icons.check_circle, color: Colors.green) : null,
-            ),
-            buttonBar: GFButtonBar(children: [
-              GFButton(
-                onPressed: () {
-                  ref.read(cartProvider.notifier).applyPromo(p.id);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Promo diterapkan')));
-                },
-                text: isApplied ? 'Diterapkan' : 'Terapkan',
-                color: const Color(0xFF1E88E5),
-              )
-            ]),
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final activePromos = snapshot.data ?? [];
+          final cartState = ref.watch(cartProvider);
+          final appliedPromoId = cartState.appliedPromoId;
+
+          if (activePromos.isEmpty) {
+            return const Center(child: Text('Tidak ada promo yang tersedia'));
+          }
+
+          return ListView.builder(
+            itemCount: activePromos.length,
+            itemBuilder: (context, index) {
+              final promo = activePromos[index];
+              final isApplied = appliedPromoId == promo.id;
+
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        promo.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tipe: ${promo.formattedType}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      Text(
+                        'Nilai: ${promo.formattedValue}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      Text(
+                        'Berlaku: ${DateFormat('dd MMM yyyy').format(promo.start)} - ${DateFormat('dd MMM yyyy').format(promo.end)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isApplied
+                              ? () => ref.read(cartProvider.notifier).applyPromo(null)
+                              : () => ref.read(cartProvider.notifier).applyPromo(promo.id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isApplied ? Colors.grey : null,
+                          ),
+                          child: Text(isApplied ? 'Batalkan' : 'Gunakan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

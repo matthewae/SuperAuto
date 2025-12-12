@@ -207,8 +207,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           if (user != null) {
                             print('Login successful, initializing notifications...');
                             await NotificationService().init();
-                            print('Notifications initialized, seeding dummy data...');
-                            seedDummyData(ref);
+                            print('Notifications initialized, triggering dummy data seeding...');
+                            
+                            try {
+                              // Await the seederProvider future
+                              await ref.read(seederProvider.future);
+                              print('Dummy data seeding completed');
+                            } catch (e) {
+                              print('Error during dummy data seeding: $e');
+                              // Continue with the login flow even if seeding fails
+                            }
 
                             if (context.mounted) {
                               print('Navigating to home page...');

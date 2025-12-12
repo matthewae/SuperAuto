@@ -1,4 +1,4 @@
-  import 'dart:convert';
+import 'dart:convert';
 class ServiceBooking {
   final String id;
   final String userId;
@@ -21,8 +21,9 @@ class ServiceBooking {
   final String? mechanicName;
   final bool isPickupService;
   final String? serviceLocation;
+  final String? promoId;
 
-   ServiceBooking({
+  ServiceBooking({
     required this.id,
     required this.userId,
     required this.carId,
@@ -44,6 +45,7 @@ class ServiceBooking {
     this.mechanicName,
     this.isPickupService = false,
     this.serviceLocation,
+    this.promoId,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -69,6 +71,7 @@ class ServiceBooking {
       'mechanicName': mechanicName,
       'isPickupService': isPickupService ? 1 : 0,
       'serviceLocation': serviceLocation,
+      'promoId': promoId,
     };
   }
 
@@ -105,6 +108,7 @@ class ServiceBooking {
       mechanicName: map['mechanicName'] as String?,
       isPickupService: (map['isPickupService'] as int?) == 1,
       serviceLocation: map['serviceLocation'] as String?,
+      promoId: map['promoId'] as String?,
     );
   }
 
@@ -126,6 +130,11 @@ class ServiceBooking {
     double? totalCost,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? serviceDetails,
+    String? mechanicName,
+    bool? isPickupService,
+    String? serviceLocation,
+    String? promoId,
   }) {
     return ServiceBooking(
       id: id ?? this.id,
@@ -145,6 +154,11 @@ class ServiceBooking {
       totalCost: totalCost ?? this.totalCost,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      serviceDetails: serviceDetails ?? this.serviceDetails,
+      mechanicName: mechanicName ?? this.mechanicName,
+      isPickupService: isPickupService ?? this.isPickupService,
+      serviceLocation: serviceLocation ?? this.serviceLocation,
+      promoId: promoId ?? this.promoId,
     );
   }
 }

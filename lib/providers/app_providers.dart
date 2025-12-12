@@ -10,7 +10,6 @@ import '../models/cart.dart';
 import '../models/order.dart';
 import '../models/service_booking.dart';
 import '../models/promo.dart';
-import '../models/loyalty_points.dart';
 import '../models/enums.dart';
 import '../models/cart.dart';
 import '../services/auth_service.dart';
@@ -21,6 +20,9 @@ import '../data/dao/service_booking_dao.dart';
 import '../data/db/app_database.dart';
 import '../data/dao/order_dao.dart';
 import '../data/dao/cart_dao.dart';
+import '../data/dao/promo_dao.dart';
+import '../utils/image_placeholder.dart';
+import '../data/dummy_data.dart';
 
 const _uuid = Uuid();
 
@@ -203,6 +205,9 @@ final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) {
 class CarsNotifier extends StateNotifier<List<Car>> {
   final CarDao _dao;
   final Ref _ref;
+  bool _isLoading = false;
+
+  bool get isLoading => _isLoading;
 
   CarsNotifier(this._dao, this._ref) : super(const []) {
     _loadCars();
@@ -212,22 +217,32 @@ class CarsNotifier extends StateNotifier<List<Car>> {
   }
 
   Future<void> _loadCars() async {
-    final user = _ref.read(authProvider).value;
-    print('Loading cars. Current user: ${user?.id} (${user?.email})');
+    if (_isLoading) return;
 
-    if (user?.id != null) {
-      try {
-        print('Getting cars for user ID: ${user!.id}');
-        final cars = await _dao.getByUserId(user!.idString);
-        print('Successfully loaded ${cars.length} cars for user ${user!.id}');
-        state = cars;
-      } catch (e) {
-        print('Error loading cars: $e');
+    _isLoading = true;
+    state = [...state]; // Trigger listeners
+
+    try {
+      final user = _ref.read(authProvider).value;
+      print('Loading cars. Current user: ${user?.id} (${user?.email})');
+
+      if (user?.id != null) {
+        try {
+          print('Getting cars for user ID: ${user!.id}');
+          final cars = await _dao.getByUserId(user!.idString);
+          print('Successfully loaded ${cars.length} cars for user ${user!.id}');
+          state = cars;
+        } catch (e) {
+          print('Error loading cars: $e');
+          state = [];
+        }
+      } else {
+        print('No user logged in, clearing car list');
         state = [];
       }
-    } else {
-      print('No user logged in, clearing car list');
-      state = [];
+    } finally {
+      _isLoading = false;
+      state = [...state]; // Trigger listeners again when loading is done
     }
   }
 
@@ -255,74 +270,30 @@ final productsProvider = StateNotifierProvider<ProductNotifier, List<Product>>((
 class ProductNotifier extends StateNotifier<List<Product>> {
   final ProductDao _dao;
 
-  ProductNotifier(this._dao) : super([
-    Product(
-      id: _uuid.v4(),
-      name: 'Ban Michelin Primacy 4',
-      category: ProductCategory.tiresWheels,
-      description: 'Ban touring premium dengan performa pengereman basah dan kering yang sangat baik.',
-      price: 1200000,
-      compatibleModels: ['Sedan', 'MPV'],
-      imageUrl: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=Ban+Michelin',
-    ),
-    Product(
-      id: _uuid.v4(),
-      name: 'Oli Mesin Castrol EDGE',
-      category: ProductCategory.fluids,
-      description: 'Oli mesin full sintetis untuk performa maksimal dan perlindungan mesin.',
-      price: 150000,
-      compatibleModels: ['Semua Model'],
-      imageUrl: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Oli+Castrol',
-    ),
-    Product(
-      id: _uuid.v4(),
-      name: 'Filter Udara K&N',
-      category: ProductCategory.accessories,
-      description: 'Filter udara performa tinggi yang dapat dicuci dan digunakan kembali.',
-      price: 750000,
-      compatibleModels: ['Sport', 'SUV'],
-      imageUrl: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Filter+K%26N',
-    ),
-    Product(
-      id: _uuid.v4(),
-      name: 'Klakson Hella Black Twin Tone',
-      category: ProductCategory.accessories,
-      description: 'Klakson mobil Hella Black Twin Tone, suara nyaring dan elegan.',
-      price: 250000,
-      compatibleModels: ['Semua Model'],
-      imageUrl: 'https://via.placeholder.com/150/000000/FFFFFF?text=Klakson+Hella',
-    ),
-    Product(
-      id: _uuid.v4(),
-      name: 'Lampu LED Philips Ultinon Essential',
-      category: ProductCategory.electronics,
-      description: 'Lampu depan LED Philips Ultinon Essential, terang dan tahan lama.',
-      price: 600000,
-      compatibleModels: ['Semua Model'],
-      imageUrl: 'https://via.placeholder.com/150/FFFF00/000000?text=Lampu+LED+Philips',
-    ),
-    Product(
-      id: _uuid.v4(),
-      name: 'Kamera Mundur Universal',
-      category: ProductCategory.electronics,
-      description: 'Kamera mundur universal dengan tampilan jernih untuk keamanan parkir.',
-      price: 350000,
-      compatibleModels: ['Semua Model'],
-      imageUrl: 'https://via.placeholder.com/150/808080/FFFFFF?text=Kamera+Mundur',
-    ),
-  ]) {
+  ProductNotifier(this._dao) : super([]) {
     _loadProducts();
   }
 
   Future<void> _loadProducts() async {
     try {
       final items = await _dao.getAll();
-      state = items;
+
+      if (items.isEmpty) {
+        for (final p in state) {
+          await _dao.insert(p);
+        }
+
+        final seeded = await _dao.getAll();
+        state = seeded;
+      } else {
+        state = items;
+      }
+
     } catch (e) {
-      print('Error loading products: $e');
       state = [];
     }
   }
+
 
   Future<void> save(
       String name,
@@ -341,6 +312,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
           description: desc,
           price: price,
           compatibleModels: compatibleModels,
+          imageUrl: ImagePlaceholder.generate(),
         );
         await _dao.insert(newProduct);
       } else {
@@ -360,7 +332,6 @@ class ProductNotifier extends StateNotifier<List<Product>> {
       rethrow;
     }
   }
-
   Future<void> delete(String id) async {
     try {
       await _dao.delete(id);
@@ -381,6 +352,7 @@ final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
 class CartNotifier extends StateNotifier<CartState> {
   final Ref ref;
   late final CartDao _dao = CartDao.instance;
+  late final PromoDao _promoDao = PromoDao.instance;
 
   CartNotifier(this.ref) : super(const CartState()) {
     _init();
@@ -477,12 +449,20 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
 
-  Future<void> applyPromo(String? promoId, {double discount = 0.0}) async {
+  Future<void> applyPromo(String? promoId) async {
     try {
-      state = state.copyWith(
-        appliedPromoId: promoId,
-        discount: discount,
-      );
+      if (promoId == null) {
+        state = state.copyWith(appliedPromoId: null, discount: 0.0);
+        return;
+      }
+
+      final promo = await _promoDao.getById(promoId);
+      if (promo == null || !promo.isActive() || promo.type != 'product_discount') {
+        throw Exception('Promo tidak valid atau tidak aktif');
+      }
+
+      final discount = promo.calculateDiscount(state.subtotal);
+      state = state.copyWith(appliedPromoId: promoId, discount: discount);
     } catch (e) {
       print('Error applying promo: $e');
       rethrow;
@@ -664,7 +644,6 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     }
   }
 
-  // Add this method to your BookingsNotifier if it doesn't exist
   Future<void> updateServiceDetails({
     required String id,
     required List<String> jobs,
@@ -682,14 +661,14 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
         totalCost: totalCost,
         adminNotes: notes,
       );
-      await _dao.update(updatedBooking);
+
+      await _dao.updateStatusAndDetails(updatedBooking);
       state = [updatedBooking, ...state.where((b) => b.id != id)];
     } catch (e) {
       print('Error updating service details: $e');
       rethrow;
     }
   }
-
   Future<void> updateStatus(String id, String status, {String? notes}) async {
     try {
       final booking = state.firstWhere((b) => b.id == id);
@@ -701,12 +680,12 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
 
       final now = DateTime.now();
 
-      // ✅ Build new status history
+      // Build new status history
       final Map<String, dynamic> newStatusHistory = Map<String, dynamic>.from(
         booking.statusHistory ?? {},
       );
 
-      // Add new status to history dengan format yang konsisten
+      // Add new status to history
       newStatusHistory[status] = now.toIso8601String();
 
       print('📝 Updating status from ${booking.status} to $status');
@@ -742,12 +721,23 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
   }) async {
     try {
       final booking = state.firstWhere((b) => b.id == id);
+
+      // Get the promo ID from the existing booking
+      final promoId = booking.promoId;
+
+      // Calculate final cost with promo discount
+      double finalCost = totalCost ?? booking.totalCost ?? booking.estimatedCost;
+      if (promoId != null && totalCost != null) {
+        final discount = await _dao.calculateDiscount(id);
+        finalCost = totalCost - discount;
+      }
+
       final updatedBooking = booking.copyWith(
         status: status,
         jobs: jobs,
         parts: parts,
         km: km,
-        totalCost: totalCost,
+        totalCost: finalCost,
         adminNotes: adminNotes,
         updatedAt: DateTime.now(),
       );
@@ -796,18 +786,108 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
       rethrow;
     }
   }
-}
 
+  // Method to calculate final cost with promo discount
+  Future<double> calculateFinalCost(String bookingId) async {
+    try {
+      return await _dao.calculateFinalCost(bookingId);
+    } catch (e) {
+      print('Error calculating final cost: $e');
+      rethrow;
+    }
+  }
+
+  // Method to calculate discount amount
+  Future<double> calculateDiscount(String bookingId) async {
+    try {
+      return await _dao.calculateDiscount(bookingId);
+    } catch (e) {
+      print('Error calculating discount: $e');
+      rethrow;
+    }
+  }
+}
 
 // Promos
 final promosProvider = StateNotifierProvider<PromosNotifier, List<Promo>>((ref) {
-  return PromosNotifier();
+  return PromosNotifier(ref);
 });
 
 class PromosNotifier extends StateNotifier<List<Promo>> {
-  PromosNotifier() : super(const []);
-  void set(List<Promo> list) => state = list;
+  final Ref ref;
+  late final PromoDao _dao;
+
+  PromosNotifier(this.ref) : super([]) {
+    _dao = PromoDao.instance;
+    _loadPromos();
+  }
+
+  Future<void> _loadPromos() async {
+    try {
+      final promos = await _dao.getAll();
+      state = promos;
+    } catch (e) {
+      print('Error loading promos: $e');
+      state = [];
+    }
+  }
+
+  Future<void> add(Promo promo) async {
+    try {
+      await _dao.insert(promo);
+      await _loadPromos();
+    } catch (e) {
+      print('Error adding promo: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> update(Promo promo) async {
+    try {
+      await _dao.update(promo);
+      await _loadPromos();
+    } catch (e) {
+      print('Error updating promo: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> delete(String id) async {
+    try {
+      await _dao.delete(id);
+      await _loadPromos();
+    } catch (e) {
+      print('Error deleting promo: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Promo>> getActivePromos() async {
+    try {
+      return await _dao.getActive();
+    } catch (e) {
+      print('Error getting active promos: $e');
+      return [];
+    }
+  }
+
+  Future<List<Promo>> getActivePromosByType(String type) async {
+    try {
+      return await _dao.getByType(type);
+    } catch (e) {
+      print('Error getting active promos by type: $e');
+      return [];
+    }
+  }
 }
 
-// Loyalty
+// Add promoDaoProvider
+final promoDaoProvider = Provider<PromoDao>((ref) {
+  return PromoDao.instance;
+});
+
+final seederProvider = FutureProvider<void>((ref) async {
+  await seedDummyData(ref);
+});
+
 final loyaltyPointsProvider = StateProvider<int>((ref) => 0);

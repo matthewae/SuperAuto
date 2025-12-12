@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/service_booking.dart';
 import '../../providers/app_providers.dart';
-import '../../models/enums.dart';
-import '../../data/dao/user_dao.dart';
-import '../../data/dao/car_dao.dart';
 import '../../widgets/complete_service_dialog.dart';
-
+import '../../models/promo.dart';
 class AdminBookingPage extends ConsumerWidget {
   const AdminBookingPage({super.key});
 
@@ -162,7 +158,7 @@ class AdminBookingPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         _buildInfoRow('Nama', details['userName']),
-                        _buildInfoRow('E-Mail', details['email']),
+                        _buildInfoRow('E-Mail', details['userPhone']),
                         _buildInfoRow('Mobil', details['carInfo']),
                         const Divider(height: 20),
                         _buildInfoRow('Layanan', booking.serviceType),
@@ -172,6 +168,45 @@ class AdminBookingPage extends ConsumerWidget {
                             'Perkiraan Biaya',
                             'Rp${booking.estimatedCost.toStringAsFixed(0)}'
                         ),
+                        if (booking.totalCost != null) ...[
+                          _buildInfoRow(
+                              'Total Biaya',
+                              'Rp${booking.totalCost!.toStringAsFixed(0)}'
+                          ),
+                          // Add promo info if exists
+                          if (booking.promoId != null)
+                            FutureBuilder<Promo?>(
+                              future: ref.read(promoDaoProvider).getById(booking.promoId!),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData && snapshot.data != null) {
+                                  final promo = snapshot.data!;
+                                  return FutureBuilder<double>(
+                                    future: ref.read(bookingsProvider.notifier).calculateDiscount(booking.id),
+                                    builder: (context, discountSnapshot) {
+                                      final discount = discountSnapshot.data ?? 0.0;
+                                      return Column(
+                                        children: [
+                                          _buildInfoRow(
+                                              'Promo',
+                                              '${promo.name} (${promo.formattedValue})'
+                                          ),
+                                          _buildInfoRow(
+                                              'Diskon',
+                                              '-Rp${discount.toStringAsFixed(0)}'
+                                          ),
+                                          _buildInfoRow(
+                                              'Total Setelah Diskon',
+                                              'Rp${(booking.totalCost! - discount).toStringAsFixed(0)}'
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                        ],
                         if (booking.notes?.isNotEmpty ?? false) ...[
                           const SizedBox(height: 4),
                           _buildInfoRow(
@@ -209,8 +244,7 @@ class AdminBookingPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String? value,
-      {bool isMultiline = false}) {
+  Widget _buildInfoRow(String label, String? value, {bool isMultiline = false}) {
     if (value == null || value.isEmpty) return const SizedBox.shrink();
 
     return Padding(

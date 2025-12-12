@@ -11,6 +11,7 @@ class Car {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isMain;
+  final String? imageUrl;
 
   Car({
     required this.id,
@@ -23,6 +24,7 @@ class Car {
     required this.initialKm,
     required this.userId,
     required this.isMain,
+    this.imageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -39,6 +41,7 @@ class Car {
       'engineNumber': engineNumber,
       'initialKm': initialKm,
       'userId': userId,
+      'imageUrl': imageUrl,
       'isMain': isMain ? 1 : 0,  // Store as INTEGER (1 for true, 0 for false)
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -57,6 +60,7 @@ class Car {
       initialKm: map['initialKm'] as int,
       userId: map['userId'] as String,
       isMain: (map['isMain'] as int? ?? 0) == 1,
+      imageUrl: map['imageUrl'] as String?,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : null,
@@ -77,6 +81,7 @@ class Car {
     int? initialKm,
     String? userId,
     bool? isMain,
+    String? imageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -91,6 +96,7 @@ class Car {
       initialKm: initialKm ?? this.initialKm,
       userId: userId ?? this.userId,
       isMain: isMain ?? this.isMain,
+      imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
