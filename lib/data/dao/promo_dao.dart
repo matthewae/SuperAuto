@@ -67,4 +67,8 @@ class PromoDao {
     final db = await _db;
     return await db.delete('promo', where: 'id = ?', whereArgs: [id]);
   }
+  Future<void> deleteAll() async {
+    final db = await _db;
+    await db.delete('promo');
+  }
 }

@@ -9,18 +9,15 @@ import 'package:go_router/go_router.dart';
 class AdminOrderDetailPage extends ConsumerStatefulWidget {
   final String orderId;
 
-  const AdminOrderDetailPage({
-    super.key,
-    required this.orderId,
-  });
+  const AdminOrderDetailPage({super.key, required this.orderId});
 
   @override
   ConsumerState<AdminOrderDetailPage> createState() =>
       _AdminOrderDetailPageState();
 }
 
-class _AdminOrderDetailPageState
-    extends ConsumerState<AdminOrderDetailPage> with SingleTickerProviderStateMixin {
+class _AdminOrderDetailPageState extends ConsumerState<AdminOrderDetailPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _trackingController = TextEditingController();
   bool _isLoading = false;
@@ -44,7 +41,9 @@ class _AdminOrderDetailPageState
     });
 
     try {
-      await ref.read(orderDaoProvider).updateTrackingNumber(orderId, _trackingController.text);
+      await ref
+          .read(orderDaoProvider)
+          .updateTrackingNumber(orderId, _trackingController.text);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -53,7 +52,7 @@ class _AdminOrderDetailPageState
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {}); // Refresh the page
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -88,7 +87,7 @@ class _AdminOrderDetailPageState
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {}); // Refresh the page
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -125,18 +124,14 @@ class _AdminOrderDetailPageState
         if (snap.hasError) {
           return Scaffold(
             appBar: AppBar(),
-            body: Center(
-              child: Text("Error loading order: ${snap.error}"),
-            ),
+            body: Center(child: Text("Error loading order: ${snap.error}")),
           );
         }
 
         if (!snap.hasData || snap.data == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(
-              child: Text("Order not found"),
-            ),
+            body: const Center(child: Text("Order not found")),
           );
         }
 
@@ -168,12 +163,12 @@ class _AdminOrderDetailPageState
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
-            controller: _tabController,
-            children: [
-              _buildOrderDetailsTab(order, createdDate),
-              _buildManageOrderTab(order),
-            ],
-          ),
+                  controller: _tabController,
+                  children: [
+                    _buildOrderDetailsTab(order, createdDate),
+                    _buildManageOrderTab(order),
+                  ],
+                ),
         );
       },
     );
@@ -185,10 +180,11 @@ class _AdminOrderDetailPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Order info card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -198,29 +194,40 @@ class _AdminOrderDetailPageState
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                    child: Text(
-                      "Order Information",
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        child: Text(
+                          "Order Information",
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(order.status).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _getStatusDisplayName(order.status),
-                            style: TextStyle(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(order.status).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getStatusIcon(order.status),
+                              size: 16,
                               color: _getStatusColor(order.status),
-                              fontWeight: FontWeight.w500,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _getStatusDisplayName(order.status),
+                              style: TextStyle(
+                                color: _getStatusColor(order.status),
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -229,7 +236,10 @@ class _AdminOrderDetailPageState
                   _buildDetailRow("Order ID", order.id),
                   _buildDetailRow("Customer", order.userName ?? "Unknown"),
                   _buildDetailRow("Date", createdDate),
-                  _buildDetailRow("Total", "Rp ${order.total.toStringAsFixed(2)}"),
+                  _buildDetailRow(
+                    "Total",
+                    "Rp ${order.total.toStringAsFixed(2)}",
+                  ),
                   if (order.trackingNumber != null)
                     _buildDetailRow("Tracking Number", order.trackingNumber!),
                 ],
@@ -239,10 +249,11 @@ class _AdminOrderDetailPageState
 
           const SizedBox(height: 16),
 
-          // Items card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -255,79 +266,96 @@ class _AdminOrderDetailPageState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: order.items.length,
-                    separatorBuilder: (context, index) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final item = order.items[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            // Product image
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: item.imageUrl != null
-                                  ? Image.network(
-                                item.imageUrl!,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 60,
-                                    height: 60,
-                                    color: Colors.grey[200],
-                                    child: const Icon(Icons.image, color: Colors.grey),
-                                  );
-                                },
-                              )
-                                  : Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.image, color: Colors.grey),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Product details
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.productName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Quantity: ${item.quantity}",
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Price
-                            Text(
-                              "Rp ${item.price.toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+
+                  if (order.items.isEmpty) ...[
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          "No items found for this order",
+                          style: TextStyle(color: Colors.grey),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ] else ...[
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: order.items.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final item = order.items[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: item.imageUrl != null
+                                    ? Image.network(
+                                        item.imageUrl!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Container(
+                                                width: 60,
+                                                height: 60,
+                                                color: Colors.grey[200],
+                                                child: const Icon(
+                                                  Icons.image,
+                                                  color: Colors.grey,
+                                                ),
+                                              );
+                                            },
+                                      )
+                                    : Container(
+                                        width: 60,
+                                        height: 60,
+                                        color: Colors.grey[200],
+                                        child: const Icon(
+                                          Icons.image,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.productName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Quantity: ${item.quantity}",
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                "Rp ${item.price.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -338,18 +366,19 @@ class _AdminOrderDetailPageState
   }
 
   Widget _buildManageOrderTab(Order order) {
-    // Check if order is in final status
-    final isFinalStatus = order.status == 'delivered' || order.status == 'cancelled';
+    final isFinalStatus =
+        order.status == 'delivered' || order.status == 'cancelled';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Update tracking number card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -364,14 +393,16 @@ class _AdminOrderDetailPageState
                   const SizedBox(height: 16),
                   TextField(
                     controller: _trackingController,
-                    enabled: !isFinalStatus, // Disable if order is in final status
+                    enabled: !isFinalStatus,
                     decoration: InputDecoration(
                       hintText: "Enter tracking number",
                       border: const OutlineInputBorder(),
                       enabledBorder: isFinalStatus
                           ? OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      )
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            )
                           : null,
                     ),
                   ),
@@ -379,7 +410,9 @@ class _AdminOrderDetailPageState
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isFinalStatus ? null : () => _updateTrackingNumber(order.id),
+                      onPressed: isFinalStatus
+                          ? null
+                          : () => _updateTrackingNumber(order.id),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -404,10 +437,11 @@ class _AdminOrderDetailPageState
 
           const SizedBox(height: 16),
 
-          // Update status card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -426,18 +460,22 @@ class _AdminOrderDetailPageState
                       border: const OutlineInputBorder(),
                       enabledBorder: isFinalStatus
                           ? OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
                             )
                           : null,
                     ),
-                    items: _getAvailableStatuses(order.status).map<DropdownMenuItem<String>>((status) {
-                      return DropdownMenuItem<String>(
-                        value: status['value']!,
-                        child: Text(status['label']!),
-                      );
-                    }).toList(),
-                    onChanged: isFinalStatus 
-                        ? null 
+                    items: _getAvailableStatuses(order.status)
+                        .map<DropdownMenuItem<String>>((status) {
+                          return DropdownMenuItem<String>(
+                            value: status['value']!,
+                            child: Text(status['label']!),
+                          );
+                        })
+                        .toList(),
+                    onChanged: isFinalStatus
+                        ? null
                         : (String? value) {
                             if (value != null) {
                               _updateOrderStatus(order.id, value);
@@ -450,7 +488,9 @@ class _AdminOrderDetailPageState
                         ? "This order is ${order.status} and cannot be modified."
                         : "Note: Changing the status will notify the customer.",
                     style: TextStyle(
-                      color: isFinalStatus ? Colors.red.shade400 : Colors.grey[600],
+                      color: isFinalStatus
+                          ? Colors.red.shade400
+                          : Colors.grey[600],
                       fontSize: 12,
                     ),
                   ),
@@ -508,6 +548,23 @@ class _AdminOrderDetailPageState
     }
   }
 
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Icons.pending;
+      case 'processing':
+        return Icons.hourglass_empty;
+      case 'shipped':
+        return Icons.local_shipping;
+      case 'delivered':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
+
   String _getStatusDisplayName(String status) {
     switch (status) {
       case 'pending':
@@ -525,20 +582,18 @@ class _AdminOrderDetailPageState
     }
   }
 
-  // Function to check if status transition is valid
   bool _isValidStatusTransition(String currentStatus, String newStatus) {
     final validTransitions = {
       'pending': ['processing', 'cancelled'],
       'processing': ['shipped', 'cancelled'],
       'shipped': ['delivered', 'cancelled'],
-      'delivered': [], // Final status
-      'cancelled': [], // Final status
+      'delivered': [],
+      'cancelled': [],
     };
 
     return validTransitions[currentStatus]?.contains(newStatus) ?? false;
   }
 
-  // Function to get available statuses for dropdown
   List<Map<String, String>> _getAvailableStatuses(String currentStatus) {
     final allStatuses = [
       {'value': 'pending', 'label': 'Menunggu Pembayaran'},
@@ -548,12 +603,12 @@ class _AdminOrderDetailPageState
       {'value': 'cancelled', 'label': 'Dibatalkan'},
     ];
 
-    // Return all statuses if current status is final
     if (currentStatus == 'delivered' || currentStatus == 'cancelled') {
-      return allStatuses.where((status) => status['value'] == currentStatus).toList();
+      return allStatuses
+          .where((status) => status['value'] == currentStatus)
+          .toList();
     }
 
-    // Return current status + valid transitions
     return allStatuses.where((status) {
       return status['value'] == currentStatus ||
           _isValidStatusTransition(currentStatus, status['value']!);

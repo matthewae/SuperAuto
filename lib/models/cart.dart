@@ -66,6 +66,8 @@ class CartState {
   }
 }
 
+// lib/models/cart.dart
+
 class CartItem {
   final int? id; // PK (auto increment)
   final String userId;
@@ -147,11 +149,6 @@ class CartItem {
     );
   }
 
-
-
-  /// Returns the total price of this cart item (price * quantity)
+  /// Returns total price of this cart item (price * quantity)
   double get totalPrice => price * quantity;
 }
-
-
-

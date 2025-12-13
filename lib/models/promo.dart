@@ -3,8 +3,8 @@ import 'package:uuid/uuid.dart';
 class Promo {
   final String id;
   final String name;
-  final String type; // service_discount, product_discount
-  final double value; // percentage (0-1) or fixed amount (>1)
+  final String type;
+  final double value;
   final DateTime start;
   final DateTime end;
   final DateTime createdAt;
@@ -39,19 +39,21 @@ class Promo {
 
   factory Promo.fromMap(Map<String, dynamic> map) {
     return Promo(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      type: map['type'] as String,
+      id: map['id'],
+      name: map['name'],
+      type: map['type'],
       value: (map['value'] as num).toDouble(),
-      start: DateTime.parse(map['start'] as String),
-      end: DateTime.parse(map['end'] as String),
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'] as String) : null,
-      imageUrl: map['imageUrl'] as String?,
+      start: DateTime.parse(map['start']),
+      end: DateTime.parse(map['end']),
+      createdAt: DateTime.parse(map['createdAt']),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
+          : null,
+      imageUrl: map['imageUrl'],
     );
   }
 
-  // Check if promo is currently active
+
   bool isActive() {
     final now = DateTime.now();
     return now.isAfter(start) && now.isBefore(end);
@@ -90,6 +92,23 @@ class Promo {
       default:
         return type;
     }
+  }
+  factory Promo.fromSupabase(Map<String, dynamic> json) {
+    return Promo(
+      id: json['id'],
+      name: json['name'],
+      type: json['type'],
+      value: (json['value'] as num).toDouble(),
+      start: DateTime.parse(json['start']),
+      end: DateTime.parse(json['end']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
+      imageUrl: json['image_url'],
+    );
   }
 
   Promo copyWith({

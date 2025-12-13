@@ -42,31 +42,50 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
             },
           ),
         ),
-      body: Column(
-        children: [
-          _buildFilterChips(),
-          Expanded(
-            child: orders.isEmpty
-                ? const Center(child: Text("Belum ada pesanan"))
-                : ListView(
-              children: _applyFilter(orders).map((order) {
-                return Card(
-                  child: ListTile(
-                    title: Text("Pesanan #${order.id.substring(0, 8)}"),
-                    subtitle: Text(
-                        "${order.items.length} item • Rp ${order.total.toStringAsFixed(0)} • ${_statusLabel(order.status)}"
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      context.go('/order-detail/${order.id}');
+        body: Column(
+          children: [
+            _buildFilterChips(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => ref.read(ordersProvider.notifier).refresh(),
+                child: Consumer(builder: (context, ref, child) {
+                  final orders = ref.watch(ordersProvider);
+                  final notifier = ref.read(ordersProvider.notifier);
+
+                  if (notifier.isLoading && orders.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (orders.isEmpty) {
+                    return const Center(
+                      child: Text("Belum ada pesanan"),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: _applyFilter(orders).length,
+                    itemBuilder: (context, index) {
+                      final order = _applyFilter(orders)[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: ListTile(
+                          title: Text("Pesanan #${order.id.substring(0, 8)}"),
+                          subtitle: Text(
+                            "${order.items.length} item • Rp ${order.total.toStringAsFixed(0)} • ${_statusLabel(order.status)}",
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            context.go('/order-detail/${order.id}');
+                          },
+                        ),
+                      );
                     },
-                  ),
-                );
-              }).toList(),
+                  );
+                }),
+              ),
             ),
-          )
-        ],
-      ),
+          ],
+        ),
     ),);
   }
 
@@ -105,9 +124,13 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
   // FILTER LOGIC
   // ------------------------------------------------------
   List<Order> _applyFilter(List<Order> orders) {
+    print('Applying filter: $currentFilter to ${orders.length} orders');
+
+    final filtered = orders.where((o) => o.status != null).toList();
+
     switch (currentFilter) {
       case OrderFilter.pending:
-        return orders.where((o) => o.status == "pending").toList();
+        return filtered.where((o) => o.status == "pending").toList();
 
       case OrderFilter.processing:
         return orders.where((o) => o.status == "processing").toList();

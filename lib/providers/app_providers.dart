@@ -22,24 +22,17 @@ import '../data/dao/order_dao.dart';
 import '../data/dao/cart_dao.dart';
 import '../data/dao/promo_dao.dart';
 import '../utils/image_placeholder.dart';
-import '../data/dummy_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import '../services/car_service.dart';
+import '../services/service_booking_service.dart';
+import '../services/product_service.dart';
+import '../services/cart_service.dart';
+import '../services/promo_service.dart';
+import '../services/order_service.dart';
+
 
 const _uuid = Uuid();
 
-final userBookingsProviderAlt = FutureProvider.autoDispose<List<ServiceBooking>>((ref) async {
-  final user = ref.watch(authProvider).valueOrNull;
-
-  if (user == null) {
-    return [];
-  }
-
-  final dao = ref.watch(serviceBookingDaoProvider);
-
-  // Force reload when bookingsProvider changes
-  ref.watch(bookingsProvider);
-
-  return await dao.getByUserId(user.idString);
-});
 
 // Core Providers
 final databaseProvider = Provider<Database>((ref) {
@@ -73,16 +66,46 @@ final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(userDao);
 });
 
+final carServiceProvider = Provider<CarService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final carDao = ref.watch(carDaoProvider);
+  return CarService(client: client, carDao: carDao);
+});
+
+final productServiceProvider = Provider<ProductService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final productDao = ref.watch(productDaoProvider);
+  return ProductService(client: client, productDao: productDao);
+});
+
+final cartServiceProvider = Provider<CartService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final cartDao = CartDao.instance;
+  return CartService(client: client, cartDao: cartDao);
+});
+
+final promoServiceProvider = Provider<PromoService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final promoDao = PromoDao.instance;
+  return PromoService(client: client, promoDao: promoDao);
+});
+
+final orderServiceProvider = Provider<OrderService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final orderDao = ref.watch(orderDaoProvider);
+  return OrderService(client: client, orderDao: orderDao);
+});
+
+
+
 // Auth
 final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
   final authService = ref.watch(authServiceProvider);
   return AuthNotifier(authService: authService, ref: ref);
 });
-
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   final AuthService _authService;
   final Ref _ref;
-
   bool _isInitialized = false;
 
   AuthNotifier({required AuthService authService, required Ref ref})
@@ -93,10 +116,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   }
 
   Future<void> _init() async {
+    if (_isInitialized) return;
     try {
-      await _authService.init();
-      final user = _authService.currentUser();
-      print('AuthNotifier initialized. User: $user');
+      final user = await _authService.init();
+      print('AuthNotifier initialized. User: ${user?.email}');
       state = AsyncValue.data(user);
     } catch (e, stack) {
       print('Error initializing AuthNotifier: $e\n$stack');
@@ -106,6 +129,47 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
+  Future<User?> signup({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final user = await _authService.signup(
+        name: name,
+        email: email,
+        password: password,
+      );
+
+      if (user != null) {
+        state = AsyncValue.data(user);
+        return user;
+      } else {
+        state = const AsyncValue.data(null);
+        return null;
+      }
+    } catch (e, stack) {
+      print('Signup error: $e\n$stack');
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+  Future<bool> verifyCurrentPassword(String password) async {
+    try {
+      final authService = _ref.read(authServiceProvider);
+      final currentUser = authService.client.auth.currentUser;
+      if (currentUser == null) return false;
+
+      final response = await authService.client.auth.signInWithPassword(
+        email: currentUser.email!,
+        password: password,
+      );
+      return response.user != null;
+    } catch (e) {
+      return false;
+    }
+  }
   Future<User?> login(String email, String password) async {
     try {
       state = const AsyncValue.loading();
@@ -132,8 +196,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       print('Starting logout process...');
       await _authService.logout();
-
-      // Clear the main car ID when logging out
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('mainCarId');
 
@@ -171,13 +233,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         throw Exception('Pengguna tidak login');
       }
 
-      // Validasi format email yang lebih baik
       final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
       if (!emailRegex.hasMatch(email)) {
         throw Exception('Format email tidak valid');
       }
 
-      // Update user data
       final updatedUser = await _authService.updateProfile(
         user: user,
         name: name,
@@ -186,7 +246,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         newPassword: newPassword,
       );
 
-      // Update state dengan data user baru
       state = AsyncValue.data(updatedUser);
     } catch (e, stack) {
       print('Error updating profile: $e\n$stack');
@@ -198,18 +257,18 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
 // Cars
 final carsProvider = StateNotifierProvider<CarsNotifier, List<Car>>((ref) {
-  final dao = ref.watch(carDaoProvider);
-  return CarsNotifier(dao, ref);
+  final carService = ref.watch(carServiceProvider);
+  return CarsNotifier(carService, ref);
 });
 
 class CarsNotifier extends StateNotifier<List<Car>> {
-  final CarDao _dao;
+  final CarService _carService;
   final Ref _ref;
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
 
-  CarsNotifier(this._dao, this._ref) : super(const []) {
+  CarsNotifier(this._carService, this._ref) : super(const []) {
     _loadCars();
     _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
       _loadCars();
@@ -220,178 +279,225 @@ class CarsNotifier extends StateNotifier<List<Car>> {
     if (_isLoading) return;
 
     _isLoading = true;
-    state = [...state]; // Trigger listeners
+    state = [...state];
 
     try {
       final user = _ref.read(authProvider).value;
-      print('Loading cars. Current user: ${user?.id} (${user?.email})');
-
-      if (user?.id != null) {
-        try {
-          print('Getting cars for user ID: ${user!.id}');
-          final cars = await _dao.getByUserId(user!.idString);
-          print('Successfully loaded ${cars.length} cars for user ${user!.id}');
-          state = cars;
-        } catch (e) {
-          print('Error loading cars: $e');
-          state = [];
-        }
-      } else {
-        print('No user logged in, clearing car list');
+      if (user?.id == null) {
         state = [];
+        return;
       }
+
+      print('Loading cars for user: ${user!.id}');
+
+      try {
+        final carsFromSupabase = await _carService.fetchAndCacheCars(user!.id);
+        state = carsFromSupabase;
+        print('Successfully loaded ${carsFromSupabase.length} cars from Supabase.');
+      } catch (e) {
+        print('Failed to fetch from Supabase, falling back to local cache. Error: $e');
+        final cachedCars = await _carService.carDao.getCachedCarsByUserId(user!.id);
+        state = cachedCars;
+      }
+    } catch (e) {
+      print('Error in _loadCars: $e');
+      state = [];
     } finally {
       _isLoading = false;
-      state = [...state]; // Trigger listeners again when loading is done
+      state = [...state];
     }
   }
 
   Future<void> add(Car car) async {
-    await _dao.insert(car);
-    await _loadCars();
+    try {
+      _isLoading = true;
+      state = [...state];
+
+      final newCar = await _carService.addCar(car);
+
+      if (state.isEmpty) {
+        print('First car added, setting as main car: ${newCar.id}');
+        await setMainCar(newCar.id);
+      } else {
+        state = [newCar, ...state];
+      }
+    } catch (e) {
+      print('Error adding car: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+    }
   }
 
   Future<void> updateCar(Car car) async {
-    await _dao.update(car);
-    await _loadCars();
+    try {
+      _isLoading = true;
+      state = [...state];
+      final updatedCar = await _carService.updateCar(car);
+      state = state.map((c) => c.id == updatedCar.id ? updatedCar : c).toList();
+    } catch (e) {
+      print('Error updating car: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+    }
   }
 
   Future<void> remove(String id) async {
-    await _dao.delete(id);
+    try {
+      _isLoading = true;
+      state = [...state];
+
+      await _carService.deleteCar(id);
+
+      state = state.where((c) => c.id != id).toList();
+    } catch (e) {
+      print('Error removing car: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> setMainCar(String carId) async {
+    final user = _ref.read(authProvider).value;
+    if (user == null) return;
+
+    await _carService.setMainCar(user.id, carId);
     await _loadCars();
   }
 }
 
 // Products
 final productsProvider = StateNotifierProvider<ProductNotifier, List<Product>>((ref) {
-  return ProductNotifier(ref.watch(productDaoProvider));
+  final productService = ref.watch(productServiceProvider);
+  return ProductNotifier(productService);
 });
 
 class ProductNotifier extends StateNotifier<List<Product>> {
-  final ProductDao _dao;
+  final ProductService _productService;
+  bool _isLoading = false;
 
-  ProductNotifier(this._dao) : super([]) {
+  bool get isLoading => _isLoading;
+
+  ProductNotifier(this._productService) : super([]) {
     _loadProducts();
   }
 
   Future<void> _loadProducts() async {
+    if (_isLoading) return;
+
+    _isLoading = true;
+    state = [...state];
+
     try {
-      final items = await _dao.getAll();
-
-      if (items.isEmpty) {
-        for (final p in state) {
-          await _dao.insert(p);
-        }
-
-        final seeded = await _dao.getAll();
-        state = seeded;
-      } else {
-        state = items;
-      }
-
+      final productsFromSupabase = await _productService.fetchAndCacheProducts();
+      state = productsFromSupabase;
+      print('Successfully loaded ${productsFromSupabase.length} products from Supabase.');
     } catch (e) {
-      state = [];
+      print('Failed to fetch from Supabase, falling back to local cache. Error: $e');
+      final cachedProducts = await _productService.productDao.getAll();
+      state = cachedProducts;
+    } finally {
+      _isLoading = false;
+      state = [...state];
     }
   }
 
-
-  Future<void> save(
-      String name,
-      double price,
-      String desc,
-      ProductCategory category,
-      List<String> compatibleModels,
-      Product? existing,
-      ) async {
+  Future<void> addProduct(Product product) async {
     try {
-      if (existing == null) {
-        final newProduct = Product(
-          id: _uuid.v4(),
-          name: name,
-          category: category,
-          description: desc,
-          price: price,
-          compatibleModels: compatibleModels,
-          imageUrl: ImagePlaceholder.generate(),
-        );
-        await _dao.insert(newProduct);
-      } else {
-        final updated = existing.copyWith(
-          name: name,
-          category: category,
-          description: desc,
-          price: price,
-          compatibleModels: compatibleModels,
-        );
-        await _dao.update(updated);
-      }
-      // Reload products after any modification
-      await _loadProducts();
+      _isLoading = true;
+      state = [...state];
+      final newProduct = await _productService.addProduct(product);
+      state = [newProduct, ...state];
     } catch (e) {
-      print('Error saving product: $e');
+      print('Error adding product: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
-  Future<void> delete(String id) async {
+
+  Future<void> updateProduct(Product product) async {
     try {
-      await _dao.delete(id);
-      // Reload products after deletion
-      await _loadProducts();
+      _isLoading = true;
+      state = [...state];
+
+      final updatedProduct = await _productService.updateProduct(product);
+      state = state.map((p) => p.id == updatedProduct.id ? updatedProduct : p).toList();
+    } catch (e) {
+      print('Error updating product: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> deleteProduct(String id) async {
+    try {
+      _isLoading = true;
+      state = [...state];
+
+      await _productService.deleteProduct(id);
+      state = state.where((p) => p.id != id).toList();
     } catch (e) {
       print('Error deleting product: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
 }
 
+
 // Cart Provider
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier(ref);
+  final cartService = ref.watch(cartServiceProvider);
+  return CartNotifier(cartService, ref);
 });
-
 class CartNotifier extends StateNotifier<CartState> {
-  final Ref ref;
-  late final CartDao _dao = CartDao.instance;
-  late final PromoDao _promoDao = PromoDao.instance;
+  final CartService _cartService;
+  final Ref _ref;
+  bool _isLoading = false;
 
-  CartNotifier(this.ref) : super(const CartState()) {
+  CartNotifier(this._cartService, this._ref) : super(const CartState()) {
     _init();
   }
 
   Future<void> _init() async {
     await loadCart();
-
-    // Listen to auth changes to update cart when user logs in/out
-    ref.listen<AsyncValue<User?>>(
-      authProvider,
-          (_, next) => loadCart(),
-    );
+    _ref.listen<AsyncValue<User?>>(authProvider, (_, next) => loadCart());
   }
 
-  String get _userId => ref.read(authProvider).value?.id ?? 'guest';
+  String get _userId => _ref.read(authProvider).value?.id ?? 'guest';
 
   Future<void> loadCart() async {
-    try {
-      final cart = await _dao.getCart(_userId);
-      // Convert Cart to CartState
-      String? promoId;
-      double promoDiscount = 0.0;
+    if (_isLoading) return;
+    _isLoading = true;
 
-      if (cart.items.isNotEmpty) {
-        // Assuming all items in the cart will have the same appliedPromoId and discount
-        // if a promo was applied to the cart.
-        promoId = cart.items.first.appliedPromoId;
-        promoDiscount = cart.items.first.discount;
+    try {
+      final user = _ref.read(authProvider).value;
+      if (user?.id == null) {
+        state = const CartState();
+        return;
       }
 
-      state = CartState(
-        items: cart.items,
-        appliedPromoId: promoId,
-        discount: promoDiscount,
-      );
-    } catch (e) {
-      print('Error loading cart: $e');
-      state = const CartState(); // Reset to empty cart on error
+      try {
+        final cartState = await _cartService.fetchAndCacheCart(user!.id);
+        state = cartState;
+        print('Successfully loaded cart from Supabase.');
+
+        await _cartService.syncPromoDetails(user.id);
+
+        final updatedCartState = await _cartService.cartDao.getCart(user.id);
+        state = updatedCartState;
+      } catch (e) {
+        print('Failed to fetch cart from Supabase, falling back to local cache. Error: $e');
+        final localCartState = await _cartService.cartDao.getCart(_userId);
+        state = localCartState;
+      }
+    } finally {
+      _isLoading = false;
     }
   }
 
@@ -402,84 +508,62 @@ class CartNotifier extends StateNotifier<CartState> {
     int quantity = 1,
     String? imageUrl,
   }) async {
-    try {
-      final item = CartItem(
-        productId: productId,
-        productName: productName,
-        price: price,
-        quantity: quantity,
-        userId: _userId,
-        imageUrl: imageUrl,
-        createdAt: DateTime.now(),
-      );
+    final item = CartItem(
+      productId: productId,
+      productName: productName,
+      price: price,
+      quantity: quantity,
+      userId: _userId,
+      imageUrl: imageUrl,
+      createdAt: DateTime.now(),
+      appliedPromoId: state.appliedPromoId,
+      discount: state.discount,
+    );
 
-      await _dao.upsertItem(item);
-      await loadCart(); // Reload cart to ensure consistency
-    } catch (e) {
-      print('Error adding item to cart: $e');
-      rethrow;
-    }
+    await _cartService.addItem(item);
+    await loadCart();
   }
 
   Future<void> updateItemQuantity(String productId, int newQuantity) async {
-    try {
-      if (newQuantity <= 0) {
-        await removeItem(productId);
-        return;
-      }
-
-      await _dao.updateItemQuantity(
-        userId: _userId,
-        productId: productId,
-        newQuantity: newQuantity,
-      );
-      await loadCart();
-    } catch (e) {
-      print('Error updating item quantity: $e');
-      rethrow;
-    }
+    await _cartService.updateItemQuantity(
+      userId: _userId,
+      productId: productId,
+      newQuantity: newQuantity,
+    );
+    await loadCart();
   }
 
   Future<void> removeItem(String productId) async {
-    try {
-      await _dao.deleteItem(_userId, productId);
-      await loadCart();
-    } catch (e) {
-      print('Error removing item from cart: $e');
-      rethrow;
-    }
+    await _cartService.removeItem(_userId, productId);
+    await loadCart();
   }
 
   Future<void> clear() async {
-    try {
-      await _dao.clearCart(_userId);
-      state = const CartState();
-    } catch (e) {
-      print('Error clearing cart: $e');
-      rethrow;
-    }
+    await _cartService.clearCart(_userId);
+    state = const CartState();
   }
 
-  Future<void> applyPromo(String? promoId) async {
-    try {
-      if (promoId == null) {
-        state = state.copyWith(appliedPromoId: null, discount: 0.0);
-        return;
-      }
 
-      final promo = await _promoDao.getById(promoId);
-      if (promo == null || !promo.isActive() || promo.type != 'product_discount') {
+  Future<void> applyPromo(String? promoId) async {
+    if (promoId == null) {
+      await _cartService.applyPromoToCart(_userId, null, 0.0);
+      state = state.copyWith(appliedPromoId: null, discount: 0.0);
+      return;
+    }
+
+    try {
+      final promos = await _ref.read(promoServiceProvider).getPromosByType('product_discount');
+      final promo = promos.where((p) => p.id == promoId).firstOrNull;
+
+      if (promo == null || !promo.isActive()) {
         throw Exception('Promo tidak valid atau tidak aktif');
       }
 
       final discount = promo.calculateDiscount(state.subtotal);
+
+      await _cartService.applyPromoToCart(_userId, promoId, discount);
+
       state = state.copyWith(appliedPromoId: promoId, discount: discount);
-
-      // Persist promo details to database
-      await _dao.updatePromoDetails(_userId, promoId, discount);
-
-      // Reload cart to ensure consistency and update UI
-      await loadCart();
     } catch (e) {
       print('Error applying promo: $e');
       rethrow;
@@ -487,15 +571,9 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   Future<void> setDeliveryFee(double fee) async {
-    try {
-      state = state.copyWith(deliveryFee: fee);
-    } catch (e) {
-      print('Error setting delivery fee: $e');
-      rethrow;
-    }
+    state = state.copyWith(deliveryFee: fee);
   }
 
-  // Helper getters
   double get subtotal => state.subtotal;
   double get total => state.total;
   int get itemCount => state.itemCount;
@@ -503,15 +581,22 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 // Orders
+
 class OrdersNotifier extends StateNotifier<List<Order>> {
+  final Ref ref;
+  bool _isLoading = false;
+
   OrdersNotifier(this.ref) : super(const []) {
     _loadOrders();
   }
 
-  final Ref ref;
-  final OrderDao _orderDao = OrderDao();
+  bool get isLoading => _isLoading;
 
   Future<void> _loadOrders() async {
+    if (_isLoading) return;
+
+    _isLoading = true;
+    state = [...state];
     try {
       final user = ref.read(authProvider).valueOrNull;
       if (user == null) {
@@ -519,46 +604,142 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
         return;
       }
 
-      final orders = await _orderDao.getByUserId(user.id!);
-      state = orders;
+      final orderService = ref.read(orderServiceProvider);
+
+      print('Loading orders for user: ${user.id}');
+
+      try {
+        final orders = await orderService.fetchAndCacheOrders(user.id);
+
+        state = orders;
+
+        print('Successfully loaded ${orders.length} orders from Supabase.');
+      } catch (e) {
+        print('Failed to fetch from Supabase, falling back to local cache. Error: $e');
+        final cachedOrders = await orderService.getCachedOrders(user.id);
+
+        state = cachedOrders;
+
+        print('Loaded ${cachedOrders.length} orders from local cache.');
+      }
     } catch (e) {
       print('Error loading orders: $e');
-      // Re-throw to allow error handling in the UI if needed
-      rethrow;
+      state = [];
+    } finally {
+      _isLoading = false;
+      state = [...state];
     }
   }
 
-  Future<void> createOrder(Order order) async {
+  Future<void> refresh() async {
+    print('Manual refresh triggered');
+    await _loadOrders();
+  }
+
+  Future<Order> createOrder({
+    required List<OrderItem> items,
+    required String paymentMethod,
+    String? shippingMethod,
+    String? shippingAddress,
+  }) async {
     try {
-      await _orderDao.insert(order);
-      state = [order, ...state];
+      _isLoading = true;
+      state = [...state];
+
+      final user = ref.read(authProvider).value;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      final orderService = ref.read(orderServiceProvider);
+
+      final cartState = ref.read(cartProvider);
+
+      final subtotal = items.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
+
+      final discountedTotal = cartState.total;
+
+      print('Creating order with subtotal: $subtotal, discount: ${cartState.discount}, total: $discountedTotal');
+
+      final newOrder = await orderService.createOrder(
+        userId: user.id,
+        userName: user.name ?? 'Customer',
+        items: items,
+        total: discountedTotal,
+        paymentMethod: paymentMethod,
+        shippingMethod: shippingMethod,
+        shippingAddress: shippingAddress,
+      );
+
+      print('Order created successfully: ${newOrder.id}');
+
+      state = [newOrder, ...state];
+
+      return newOrder;
     } catch (e) {
       print('Error creating order: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
 
-  Future<void> updateOrder(Order order) async {
+  Future<void> updateOrderStatus(String orderId, String status) async {
     try {
-      await _orderDao.update(order);
-      state = state.map((o) => o.id == order.id ? order : o).toList();
+      _isLoading = true;
+      state = [...state];
+
+      final orderService = ref.read(orderServiceProvider);
+      final updatedOrder = await orderService.updateOrderStatus(orderId, status);
+
+      print('Order status updated: $orderId -> $status');
+
+      state = state.map((order) => order.id == orderId ? updatedOrder : order).toList();
     } catch (e) {
-      print('Error updating order: $e');
+      print('Error updating order status: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> updateTrackingNumber(String orderId, String trackingNumber) async {
+    try {
+      _isLoading = true;
+      state = [...state];
+
+      final orderService = ref.read(orderServiceProvider);
+      final updatedOrder = await orderService.updateTrackingNumber(orderId, trackingNumber);
+
+      print('Tracking number updated: $orderId -> $trackingNumber');
+
+      state = state.map((order) => order.id == orderId ? updatedOrder : order).toList();
+    } catch (e) {
+      print('Error updating tracking number: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<Order?> getOrderById(String orderId) async {
+    try {
+      final orderService = ref.read(orderServiceProvider);
+
+      final orderInState = state.firstWhere((order) => order.id == orderId, orElse: () => null as Order);
+      if (orderInState != null) return orderInState;
+
+      return await orderService.getCachedOrder(orderId);
+    } catch (e) {
+      print('Error getting order by ID: $e');
+      return null;
     }
   }
 
   Future<void> cancelOrder(String orderId) async {
     try {
-      final index = state.indexWhere((o) => o.id == orderId);
-      if (index == -1) return;
-
-      final updated = state[index].copyWith(status: 'cancelled');
-      await _orderDao.update(updated);
-
-      final newState = [...state];
-      newState[index] = updated;
-      state = newState;
+      await updateOrderStatus(orderId, 'cancelled');
+      await refresh();
     } catch (e) {
       print('Error cancelling order: $e');
       rethrow;
@@ -575,9 +756,115 @@ final orderDaoProvider = Provider<OrderDao>((ref) {
 });
 
 final allOrdersProvider = FutureProvider<List<Order>>((ref) async {
-  final dao = ref.watch(orderDaoProvider);
-  return await dao.getAll();
+  try {
+    final user = ref.read(authProvider).value;
+    if (user == null) {
+      return [];
+    }
+
+    final orderService = ref.read(orderServiceProvider);
+
+    if (user.role == 'admin') {
+      return await _fetchAllOrdersFromSupabase(orderService);
+    } else {
+      return await orderService.fetchAndCacheOrders(user.id);
+    }
+  } catch (e) {
+    print('Error fetching all orders: $e');
+
+    final dao = ref.watch(orderDaoProvider);
+    try {
+      return await dao.getAll();
+    } catch (cacheError) {
+      print('Error fetching from cache: $cacheError');
+      return [];
+    }
+  }
 });
+
+Future<List<Order>> _fetchAllOrdersFromSupabase(OrderService orderService) async {
+  try {
+    final client = orderService.client;
+    final response = await client
+        .from('orders')
+        .select()
+        .order('created_at', ascending: false);
+
+    print('Orders response from Supabase: $response');
+
+    final orderIds = <String>[];
+    for (final order in response) {
+      final orderId = order['id'];
+      if (orderId != null) {
+        orderIds.add(orderId as String);
+      }
+    }
+
+    final itemsResponse = await client
+        .from('order_items')
+        .select()
+        .inFilter('order_id', orderIds);
+
+    print('Order items response from Supabase: $itemsResponse');
+
+    final Map<String, List<Map<String, dynamic>>> itemsByOrderId = {};
+    for (final item in itemsResponse) {
+      final orderId = item['order_id'] as String?;
+      if (orderId != null) {
+        itemsByOrderId.putIfAbsent(orderId, () => []).add(item);
+      }
+    }
+
+    final List<Order> orders = [];
+    for (final orderMap in response) {
+      final orderId = orderMap['id'] as String?;
+      if (orderId == null) continue;
+
+      final itemsData = itemsByOrderId[orderId] ?? [];
+
+      final items = itemsData.map((itemMap) {
+        try {
+          return OrderItem.fromMap(itemMap);
+        } catch (e) {
+          print('Error creating OrderItem from map: $e');
+          return OrderItem(
+            id: itemMap['id'] as String? ?? '',
+            orderId: orderId,
+            productId: itemMap['product_id'] as String? ?? '',
+            productName: itemMap['product_name'] as String? ?? '',
+            price: (itemMap['price'] as num?)?.toDouble() ?? 0.0,
+            quantity: itemMap['quantity'] as int? ?? 0,
+            imageUrl: itemMap['image_url'] as String?,
+          );
+        }
+      }).toList();
+
+      try {
+        orders.add(Order.fromMap(orderMap, items: items));
+      } catch (e) {
+        print('Error creating Order from map: $e');
+        continue;
+      }
+    }
+
+    print('Final orders list: ${orders.length} orders');
+
+    final orderDao = orderService.orderDao;
+    for (final order in orders) {
+      try {
+        await orderDao.insert(order);
+      } catch (e) {
+        print('Error caching order: $e');
+        continue;
+      }
+    }
+
+    return orders;
+  } catch (e) {
+    print('Error fetching all orders from Supabase: $e');
+    rethrow;
+  }
+}
 
 final pendingOrdersCountProvider = Provider<AsyncValue<int>>((ref) {
   final allOrdersAsync = ref.watch(allOrdersProvider);
@@ -592,7 +879,15 @@ final pendingOrdersCountProvider = Provider<AsyncValue<int>>((ref) {
 
 // Bookings
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<ServiceBooking>>((ref) {
-  return BookingsNotifier(ServiceBookingDao(ref.watch(databaseProvider)));
+  final service = ref.watch(serviceBookingServiceProvider);
+  final dao = ref.watch(serviceBookingDaoProvider);
+  return BookingsNotifier(service, ref);
+});
+
+final serviceBookingServiceProvider = Provider<ServiceBookingService>((ref) {
+  final client = sb.Supabase.instance.client;
+  final dao = ref.watch(serviceBookingDaoProvider);
+  return ServiceBookingService(client: client, dao: dao);
 });
 
 final pendingBookingsCountProvider = Provider<int>((ref) {
@@ -605,7 +900,6 @@ final pendingBookingsCountProvider = Provider<int>((ref) {
   ).length;
 });
 
-//history booking
 final historyFilterProvider = StateNotifierProvider<HistoryFilterNotifier, BookingFilter>((ref) {
   return HistoryFilterNotifier();
 });
@@ -618,7 +912,6 @@ class HistoryFilterNotifier extends StateNotifier<BookingFilter> {
   }
 }
 
-// 2. Provider yang mengambil booking berdasarkan user dan filter yang aktif
 final historyBookingsProvider = FutureProvider.autoDispose<List<ServiceBooking>>((ref) async {
   final user = ref.watch(authProvider).valueOrNull;
   if (user == null) {
@@ -648,36 +941,98 @@ final historyBookingsProvider = FutureProvider.autoDispose<List<ServiceBooking>>
   }
 });
 
+
 class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
-  final ServiceBookingDao _dao;
+  final ServiceBookingService _service;
+  final Ref _ref;
   bool _isInitialized = false;
 
-  BookingsNotifier(this._dao) : super([]) {
+  BookingsNotifier(this._service, this._ref) : super([]) {
     _loadBookings();
+    _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
+      print('🔄 Auth changed, reloading bookings...');
+      _loadBookings();
+    });
+  }
+
+  Future<void> refresh() async {
+    print('🔄 Manual refresh triggered');
+    await _loadBookings();
   }
 
   Future<void> _loadBookings() async {
     try {
-      final bookings = await _dao.getAll();
+      final user = _ref.read(authProvider).value;
+      if (user == null) {
+        print('No user logged in, clearing bookings');
+        state = [];
+        return;
+      }
+
+      List<ServiceBooking> bookings;
+
+      if (user.role == 'admin') {
+        print('Admin user detected, fetching ALL bookings...');
+
+        try {
+          bookings = await _service.fetchAndCacheAllBookings();
+          print('oaded ${bookings.length} bookings from Supabase (admin)');
+        } catch (e) {
+          print('Failed to fetch from Supabase, using cache: $e');
+          bookings = await _service.dao.getAllCachedBookings();
+          print('Loaded ${bookings.length} bookings from cache (admin)');
+        }
+
+      } else {
+        print('Regular user detected, fetching user bookings...');
+
+        try {
+          bookings = await _service.fetchAndCacheBookings(user.id);
+          print('Loaded ${bookings.length} bookings from Supabase (user)');
+        } catch (e) {
+          print('Failed to fetch from Supabase, using cache: $e');
+          bookings = await _service.dao.getCachedBookingsByUserId(user.id);
+          print('Loaded ${bookings.length} bookings from cache (user)');
+        }
+      }
+
       state = bookings;
       _isInitialized = true;
-    } catch (e) {
-      print('Error loading bookings: $e');
+
+      await _service.dao.debugPrintAllBookings();
+
+    } catch (e, stack) {
+      print('❌ Error in _loadBookings: $e');
+      print('Stack trace: $stack');
       state = [];
       _isInitialized = false;
     }
   }
 
-  Future<void> refresh() async {
-    await _loadBookings();
-  }
-
   Future<void> add(ServiceBooking booking) async {
     try {
-      await _dao.insert(booking);
-      await _loadBookings();
+      print('➕ Adding new booking: ${booking.id}');
+      final newBooking = await _service.addBooking(booking);
+      state = [newBooking, ...state];
+      print('Booking added to state');
     } catch (e) {
       print('Error adding booking: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateStatus(String id, String status, {String? notes}) async {
+    try {
+      print('📝 Updating status for $id to $status');
+      final updatedBooking = await _service.updateStatus(
+        bookingId: id,
+        newStatus: status,
+        adminNotes: notes,
+      );
+      state = state.map((b) => b.id == id ? updatedBooking : b).toList();
+      print('✅ Status updated in state');
+    } catch (e) {
+      print(' Error updating booking status: $e');
       rethrow;
     }
   }
@@ -691,63 +1046,21 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     required String notes,
   }) async {
     try {
+      print(' Updating service details for $id');
       final booking = state.firstWhere((b) => b.id == id);
-      final updatedBooking = booking.copyWith(
-        jobs: jobs,
-        parts: parts,
-        km: km,
-        totalCost: totalCost,
-        adminNotes: notes,
+      final updatedBooking = await _service.updateBooking(
+        booking.copyWith(
+          jobs: jobs,
+          parts: parts,
+          km: km,
+          totalCost: totalCost,
+          adminNotes: notes,
+        ),
       );
-
-      await _dao.updateStatusAndDetails(updatedBooking);
-      state = [updatedBooking, ...state.where((b) => b.id != id)];
+      state = state.map((b) => b.id == id ? updatedBooking : b).toList();
+      print(' Service details updated');
     } catch (e) {
       print('Error updating service details: $e');
-      rethrow;
-    }
-  }
-  Future<void> updateStatus(String id, String status, {String? notes}) async {
-    try {
-      final booking = state.firstWhere((b) => b.id == id);
-
-      // Don't allow updating completed or cancelled bookings
-      if (booking.status == 'completed' || booking.status == 'cancelled') {
-        throw Exception('Tidak dapat mengubah status booking yang sudah selesai/dibatalkan');
-      }
-
-      final now = DateTime.now();
-
-      // Build new status history
-      final List<Map<String, dynamic>> newStatusHistory = List<Map<String, dynamic>>.from(
-        booking.statusHistory ?? [],
-      );
-
-      // Add new status to history
-      newStatusHistory.add({
-        'status': status,
-        'updatedAt': now.toIso8601String(),
-        'notes': notes, // Add notes to status history
-      });
-
-      print('📝 Updating status from ${booking.status} to $status');
-      print('📜 New status history: $newStatusHistory');
-
-      final updatedBooking = booking.copyWith(
-        status: status,
-        adminNotes: notes ?? booking.adminNotes,
-        updatedAt: now,
-        statusHistory: newStatusHistory,
-      );
-
-      await _dao.update(updatedBooking);
-
-      // Update state
-      state = state.map((b) => b.id == id ? updatedBooking : b).toList();
-
-      print('✅ Status updated successfully');
-    } catch (e) {
-      print('❌ Error updating status: $e');
       rethrow;
     }
   }
@@ -762,166 +1075,197 @@ class BookingsNotifier extends StateNotifier<List<ServiceBooking>> {
     String? adminNotes,
   }) async {
     try {
+      print('Updating status and details for $id');
       final booking = state.firstWhere((b) => b.id == id);
-
-      // HAPUS BLOK PERHITUNGAN DISINI
-      // Kita tidak lagi menghitung diskon di Notifier.
-      // final promoId = booking.promoId;
-
-      // double finalCost = totalCost ?? booking.totalCost ?? booking.estimatedCost;
-      // if (promoId != null && totalCost != null) {
-      //   final discount = await _dao.calculateDiscount(id);
-      //   finalCost = totalCost - discount;
-      // }
-
       final now = DateTime.now();
 
-      // Build new status history
       final List<Map<String, dynamic>> newStatusHistory = List<Map<String, dynamic>>.from(
         booking.statusHistory ?? [],
       );
 
-      // Add new status to history with notes
       newStatusHistory.add({
         'status': status,
         'updatedAt': now.toIso8601String(),
         'notes': adminNotes,
       });
 
+      double finalTotalCost = totalCost ?? booking.totalCost ?? booking.estimatedCost;
+      if (booking.promoId != null && totalCost != null) {
+        final discount = await calculateDiscount(id);
+        finalTotalCost = (totalCost - discount).clamp(0, double.infinity);
+      }
+
       final updatedBooking = booking.copyWith(
         status: status,
-        jobs: jobs,
-        parts: parts,
-        km: km,
-        totalCost: totalCost, // Gunakan totalCost langsung dari parameter
-        adminNotes: adminNotes,
+        jobs: jobs ?? booking.jobs,
+        parts: parts ?? booking.parts,
+        km: km ?? booking.km,
+        totalCost: finalTotalCost,
+        adminNotes: adminNotes ?? booking.adminNotes,
         updatedAt: now,
         statusHistory: newStatusHistory,
       );
 
-      await _dao.updateStatusAndDetails(updatedBooking);
-      state = [updatedBooking, ...state.where((b) => b.id != id)];
+      await _service.updateBooking(updatedBooking);
+
+      state = state.map((b) => b.id == id ? updatedBooking : b).toList();
+      print('Status and details updated');
+
     } catch (e) {
-      print('Error updating booking details: $e');
+      print('Error updating booking status and details: $e');
       rethrow;
     }
   }
 
   Future<void> delete(String id) async {
     try {
-      await _dao.delete(id);
-      await _loadBookings();
+      print('Deleting booking: $id');
+      await _service.deleteBooking(id);
+      state = state.where((b) => b.id != id).toList();
+      print('Booking deleted from state');
     } catch (e) {
       print('Error deleting booking: $e');
       rethrow;
     }
   }
 
-  Future<List<ServiceBooking>> getByUserId(String userId) async {
-    try {
-      return await _dao.getByUserId(userId);
-    } catch (e) {
-      print('Error getting bookings by user ID: $e');
-      return [];
-    }
-  }
-
-  final activeBookingsProvider = FutureProvider.autoDispose
-      .family<List<ServiceBooking>, String>((ref, userId) async {
-    final bookings = await ref.read(bookingsProvider.notifier).getByUserId(userId);
-    return bookings
-        .where((b) => b.status != 'completed' && b.status != 'cancelled')
-        .toList();
-  });
-
-  Future<void> update(ServiceBooking booking) async {
-    try {
-      await _dao.update(booking);
-      state = state.map((b) => b.id == booking.id ? booking : b).toList();
-    } catch (e) {
-      print('Error updating booking: $e');
-      rethrow;
-    }
-  }
-
-  // Method to calculate final cost with promo discount
   Future<double> calculateFinalCost(String bookingId) async {
     try {
-      return await _dao.calculateFinalCost(bookingId);
+      final booking = state.firstWhere((b) => b.id == bookingId);
+      double finalCost = booking.totalCost ?? booking.estimatedCost;
+
+      if (booking.promoId != null) {
+        final discount = await calculateDiscount(bookingId);
+        finalCost = (finalCost - discount).clamp(0, double.infinity);
+      }
+
+      return finalCost;
     } catch (e) {
       print('Error calculating final cost: $e');
       rethrow;
     }
   }
 
-  // Method to calculate discount amount
   Future<double> calculateDiscount(String bookingId) async {
     try {
-      return await _dao.calculateDiscount(bookingId);
+      final booking = state.firstWhere((b) => b.id == bookingId);
+      if (booking.promoId == null) return 0.0;
+
+      final promo = await _ref.read(promoDaoProvider).getById(booking.promoId!);
+      if (promo == null || !promo.isActive()) return 0.0;
+
+      final double amount = booking.totalCost ?? booking.estimatedCost;
+      return promo.calculateDiscount(amount);
     } catch (e) {
-      print('Error calculating discount: $e');
+      print('❌ Error calculating discount: $e');
+      return 0.0;
+    }
+  }
+
+  Future<void> update(ServiceBooking booking) async {
+    try {
+      print('Updating booking: ${booking.id}');
+      await _service.updateBooking(booking);
+      state = state.map((b) => b.id == booking.id ? booking : b).toList();
+      print('Booking updated');
+    } catch (e) {
+      print('Error updating booking: $e');
       rethrow;
     }
+  }
+
+  Future<List<ServiceBooking>> getByUserId(String userId) async {
+    return state.where((b) => b.userId == userId).toList();
   }
 }
 
 // Promos
-final promosProvider = StateNotifierProvider<PromosNotifier, List<Promo>>((ref) {
-  return PromosNotifier(ref);
+final promosProvider = StateNotifierProvider<PromosNotifier, List<Promo>>((ref) {final promoService = ref.watch(promoServiceProvider);
+  return PromosNotifier(promoService, ref);
 });
 
 class PromosNotifier extends StateNotifier<List<Promo>> {
-  final Ref ref;
-  late final PromoDao _dao;
+  final PromoService _promoService;
+  final Ref _ref;
+  bool _isLoading = false;
 
-  PromosNotifier(this.ref) : super([]) {
-    _dao = PromoDao.instance;
+  bool get isLoading => _isLoading;
+
+  PromosNotifier(this._promoService, this._ref) : super([]) {
     _loadPromos();
+
+    _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
+      print('Auth state changed, reloading promos...');
+      _loadPromos();
+    });
   }
 
   Future<void> _loadPromos() async {
+    if (_isLoading) return;
+
+    _isLoading = true;
+    state = [...state];
+
     try {
-      final promos = await _dao.getAll();
-      state = promos;
+      final promosFromSupabase = await _promoService.fetchAndCachePromos();
+      state = promosFromSupabase;
+      print('Successfully loaded ${promosFromSupabase.length} promos from Supabase.');
     } catch (e) {
-      print('Error loading promos: $e');
-      state = [];
+      print('Failed to fetch from Supabase, falling back to local cache. Error: $e');
+      final cachedPromos = await _promoService.promoDao.getAll();
+      state = cachedPromos;
+    } finally {
+      _isLoading = false;
+      state = [...state];
     }
   }
-
   Future<void> add(Promo promo) async {
+    await _promoService.addPromo(promo);
+    await _loadPromos();
     try {
-      await _dao.insert(promo);
-      await _loadPromos();
+      _isLoading = true;
+      state = [...state];
     } catch (e) {
       print('Error adding promo: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
 
   Future<void> update(Promo promo) async {
     try {
-      await _dao.update(promo);
-      await _loadPromos();
+      _isLoading = true;
+      state = [...state];
+
+      final updatedPromo = await _promoService.updatePromo(promo);
+      state = state.map((p) => p.id == updatedPromo.id ? updatedPromo : p).toList();
     } catch (e) {
       print('Error updating promo: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
 
   Future<void> delete(String id) async {
     try {
-      await _dao.delete(id);
-      await _loadPromos();
+      _isLoading = true;
+      state = [...state]; // Trigger loading state
+
+      await _promoService.deletePromo(id);
+      state = state.where((p) => p.id != id).toList();
     } catch (e) {
       print('Error deleting promo: $e');
       rethrow;
+    } finally {
+      _isLoading = false;
     }
   }
 
   Future<List<Promo>> getActivePromos() async {
     try {
-      return await _dao.getActive();
+      return await _promoService.getActivePromos();
     } catch (e) {
       print('Error getting active promos: $e');
       return [];
@@ -930,7 +1274,7 @@ class PromosNotifier extends StateNotifier<List<Promo>> {
 
   Future<List<Promo>> getActivePromosByType(String type) async {
     try {
-      return await _dao.getByType(type);
+      return await _promoService.getPromosByType(type);
     } catch (e) {
       print('Error getting active promos by type: $e');
       return [];
@@ -943,7 +1287,4 @@ final promoDaoProvider = Provider<PromoDao>((ref) {
   return PromoDao.instance;
 });
 
-final seederProvider = FutureProvider<void>((ref) async {
-  await seedDummyData(ref);
-});
 

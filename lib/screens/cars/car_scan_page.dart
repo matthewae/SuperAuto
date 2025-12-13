@@ -56,11 +56,10 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
 
       await ref.read(carsProvider.notifier).add(car);
 
-      // Check if this is the first car being added
       final userCars = ref.read(carsProvider);
       final hasMainCar = userCars.any((c) => c.isMain);
       if (!hasMainCar) {
-        await ref.read(carDaoProvider).updateMainCarStatus(car.id, true, userId: currentUser.id);
+        await ref.read(carDaoProvider).updateMainCarStatusInCache(car.userId, car.id);
         ref.invalidate(carsProvider);
       }
 
@@ -70,9 +69,8 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
         const SnackBar(content: Text('Mobil berhasil ditambahkan')),
       );
 
-      // Optionally navigate back or reset the form
       if (mounted) {
-        Navigator.of(context).pop(true); // Return success
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       debugPrint('Error in _addFromMap: $e');
@@ -141,7 +139,6 @@ class _CarScanPageState extends ConsumerState<CarScanPage> {
                               _addFromMap(data);
                             }
                           } catch (_) {
-                            // ignore
                           }
                         }
                       },

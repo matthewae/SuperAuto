@@ -1,193 +1,275 @@
+
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import 'package:uuid/uuid.dart';
 import '../data/dao/user_dao.dart';
 import '../models/user.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/app_providers.dart';
-import 'package:uuid/uuid.dart';
 
 class AuthService {
-  final UserDao _userDao;
-  bool _initialized = false;
-  User? _currentUser;
-  final Ref? _ref;
+  final sb.SupabaseClient client = sb.Supabase.instance.client;
+  final UserDao userDao;
 
-  AuthService(this._userDao, {Ref? ref}) : _ref = ref;
+  AuthService(this.userDao);
 
-  Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
-    await _initializeAdmin();
-    await _loadCurrentUser();
+  // SIGNUP
+  Future<User?> signup({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // 1. Try to create the user in Supabase Auth first
+      final response = await client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'name': name,
+          'role': 'user',
+        },
+      ).catchError((error) {
+        if (error.toString().contains('user_already_exists')) {
+          // If user exists, try to sign in to check if they have a profile
+          return client.auth.signInWithPassword(
+            email: email,
+            password: password,
+          ).then((signInResponse) async {
+            if (signInResponse.user != null) {
+              // Check if profile exists
+              final profile = await client
+                  .from('profiles')
+                  .select()
+                  .eq('id', signInResponse.user!.id)
+                  .maybeSingle();
+
+              if (profile == null) {
+                // If no profile exists, create one
+                await _createUserProfile(
+                  userId: signInResponse.user!.id,
+                  email: email,
+                  name: name,
+                );
+              }
+              return signInResponse;
+            }
+            throw Exception('Gagal memeriksa akun yang ada');
+          });
+        }
+        throw error;
+      });
+
+      if (response.user == null) {
+        throw Exception('Gagal membuat akun');
+      }
+
+      // 2. Create user profile if this is a new user
+      if (response.session == null) {
+        // This is an existing user who just signed in
+        return User(
+          id: response.user!.id,
+          email: email,
+          name: name,
+          role: 'user',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+
+      // 3. This is a new user, create their profile
+      await _createUserProfile(
+        userId: response.user!.id,
+        email: email,
+        name: name,
+      );
+
+      return User(
+        id: response.user!.id,
+        email: email,
+        name: name,
+        role: 'user',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    } catch (e) {
+      print('Error during signup: $e');
+      rethrow;
+    }
   }
 
-  Future<void> _initializeAdmin() async {
+// Helper method to create user profile
+  Future<void> _createUserProfile({
+    required String userId,
+    required String email,
+    required String name,
+  }) async {
+    await client.from('profiles').upsert({
+      'id': userId,
+      'name': name,
+      'role': 'user',
+      'email': email,
+      'username': email.split('@')[0],
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+  // LOGIN
+  Future<User?> login(String email, String password) async {
     try {
-      final existingAdmin = await _userDao.getUserByEmail("admin@superauto.com");
-      if (existingAdmin == null) {
-        await _userDao.insertUser(
-          User(
-            id: const Uuid().v4(),
-            email: "admin@superauto.com",
-            password: "admin",
-            name: "Super Admin",
-            createdAt: DateTime.now(),
-            role: "admin",
+      final res = await client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final sbUser = res.user;
+      if (sbUser == null) return null;
+
+      // Ambil data lengkap dari tabel 'profiles' di Supabase
+      final profile = await client
+          .from('profiles')
+          .select()
+          .eq('id', sbUser.id)
+          .single();
+
+      final user = User(
+        id: sbUser.id,
+        email: profile['email'] ?? sbUser.email,
+        name: profile['name'],
+        role: profile['role'] ?? 'user',
+        createdAt: DateTime.parse(profile['created_at']),
+        updatedAt: DateTime.parse(profile['updated_at']),
+        password: password, // Simpan password di lokal cache
+      );
+
+      // Cache user yang berhasil login ke SQLite
+      await userDao.cacheUser(user);
+
+      return user;
+    } catch (e) {
+      print("Error during login: $e");
+      return null;
+    }
+  }
+
+  // LOGOUT
+  Future<void> logout() async {
+    // Hapus cache dari lokal
+    await userDao.clearCache();
+    // Logout dari Supabase
+    await client.auth.signOut();
+  }
+
+  // INISIALISASI & RESTORE SESSION
+  // Method ini akan dipanggil saat aplikasi dimulai
+  Future<User?> init() async {
+    // 1. Cek apakah ada session aktif di Supabase
+    final session = client.auth.currentSession;
+
+    if (session != null && session.user != null) {
+      final sbUser = session.user!;
+      print("Supabase session found for user: ${sbUser.email}");
+
+      try {
+        // Jika ada, ambil data terbaru dari Supabase
+        final profile = await client
+            .from('profiles')
+            .select()
+            .eq('id', sbUser.id)
+            .single();
+
+        final user = User(
+          id: sbUser.id,
+          email: profile['email'] ?? sbUser.email,
+          name: profile['name'],
+          role: profile['role'] ?? 'user',
+          createdAt: DateTime.parse(profile['created_at']),
+          updatedAt: DateTime.parse(profile['updated_at']),
+          password: '', // Password tidak tersedia dari session
+        );
+
+        // Perbarui cache lokal dengan data terbaru
+        await userDao.cacheUser(user);
+        return user;
+      } catch (e) {
+        // Jika gagal mengambil data dari Supabase (misalnya offline),
+        // lanjut ke langkah 2.
+        print("Could not fetch user profile from Supabase, falling back to cache.");
+      }
+    }
+
+    // 2. Jika tidak ada session Supabase atau offline, coba ambil dari cache lokal
+    print("No Supabase session, checking local cache...");
+    final cachedUser = await userDao.getCachedUser();
+    if (cachedUser != null) {
+      print("User found in local cache: ${cachedUser.email}");
+    }
+    return cachedUser;
+  }
+
+  // UPDATE PROFILE
+  Future<User> updateProfile({
+    required User user,
+    String? name,
+    String? email,
+    String? currentPassword,
+    String? newPassword,
+  }) async {
+    try {
+      // 1. Update data di tabel 'profiles' Supabase
+      final updates = <String, dynamic>{};
+      if (name != null) updates['name'] = name;
+      if (email != null) updates['email'] = email;
+      updates['updated_at'] = DateTime.now().toIso8601String();
+
+      if (updates.isNotEmpty) {
+        await client
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+      }
+
+      // 2. Jika password berubah, update di Supabase Auth
+      if (newPassword != null && newPassword.isNotEmpty) {
+        await client.auth.updateUser(
+          sb.UserAttributes(
+            password: newPassword,
           ),
         );
       }
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  Future<void> _loadCurrentUser() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userEmail = prefs.getString('current_user_email');
-      debugPrint('Loading current user with email: $userEmail');
+      // 3. Ambil data profil yang sudah diperbarui dari Supabase
+      final updatedProfile = await client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .single();
 
-      if (userEmail != null) {
-        _currentUser = await _userDao.getUserByEmail(userEmail);
-        if (_currentUser != null) {
-          debugPrint('Loaded current user - ID: ${_currentUser!.id}, Email: ${_currentUser!.email}');
-        } else {
-          debugPrint('User not found in database, clearing saved email');
-          await prefs.remove('current_user_email');
-        }
-      } else {
-        debugPrint('ℹNo saved user email found');
-      }
-    } catch (e) {
-      debugPrint('Error loading current user: $e');
-      rethrow;
-    }
-  }
-
-  Future<String?> register(String email, String password, String name) async {
-    debugPrint('👤 Attempting to register user: $email');
-    await init();
-
-    final existing = await _userDao.getUserByEmail(email);
-    if (existing != null) {
-      debugPrint('User already exists: $email');
-      return "Email sudah terdaftar!";
-    }
-
-    final isAdmin = email.toLowerCase() == "admin@superauto.com";
-    final newUser = User(
-      id: const Uuid().v4(),
-      email: email,
-      password: password,
-      name: name,
-      createdAt: DateTime.now(),
-      role: isAdmin ? "admin" : "user",
-    );
-
-    debugPrint('➕ Creating new user: ${newUser.toMap()}');
-    await _userDao.insertUser(newUser);
-    debugPrint('User created successfully');
-    return null;
-  }
-
-  Future<User?> login(String email, String password) async {
-    try {
-      final user = await _userDao.getUserByEmail(email);
-      if (user != null) {
-        // Use verifyPassword to check the password
-        final isValid = await _userDao.verifyPassword(user.id, password);
-        if (isValid) {
-          // Save user session
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', user.idString);
-          await prefs.setString('current_user_email', email);
-
-          // Refresh bookings if we have a ref
-          if (_ref != null) {
-            _ref!.read(bookingsProvider.notifier).refresh();
-          }
-
-          // Set current user
-          _currentUser = user;
-          return user;
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Login error: $e');
-      rethrow;
-    }
-  }
-
-  User? currentUser() {
-    return _currentUser;
-  }
-
-  Future<void> logout() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('user_id');
-      await prefs.remove('current_user_email');
-
-      // Invalidate providers if we have a ref
-      if (_ref != null) {
-        _ref!.invalidate(bookingsProvider);
-      }
-
-      // Clear current user
-      _currentUser = null;
-    } catch (e) {
-      print('Logout error: $e');
-      rethrow;
-    }
-  }
-
-  // Tambahkan metode updateProfile
-  Future<User> updateProfile({
-    required User user,
-    required String name,
-    required String email,
-    String? newPassword,
-    String? currentPassword,
-  }) async {
-    try {
-      // Verifikasi password saat ini jika ingin mengubah password
-      if (newPassword != null && currentPassword != null) {
-        final isPasswordValid = await _userDao.verifyPassword(user.id, currentPassword);
-        if (!isPasswordValid) {
-          throw Exception('Password saat ini tidak benar');
-        }
-      }
-
-      // Periksa apakah email sudah digunakan oleh pengguna lain
-      if (email != user.email) {
-        final existingUser = await _userDao.getUserByEmail(email);
-        if (existingUser != null) {
-          throw Exception('Email sudah digunakan oleh pengguna lain');
-        }
-      }
-
-      // Buat objek user yang diperbarui
+      // 4. Buat objek User baru
       final updatedUser = user.copyWith(
-        name: name,
-        email: email,
-        password: newPassword ?? user.password,
+        name: updatedProfile['name'],
+        email: updatedProfile['email'],
+        updatedAt: DateTime.parse(updatedProfile['updated_at']),
+        password: newPassword ?? user.password, // Update password jika berubah
       );
 
-      // Simpan perubahan ke database
-      await _userDao.updateUser(updatedUser);
-
-      // Update current user
-      _currentUser = updatedUser;
-
-      // Simpan email baru ke SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('current_user_email', email);
+      // 5. Perbarui cache di SQLite
+      await userDao.updateCache(updatedUser);
 
       return updatedUser;
     } catch (e) {
-      debugPrint('Error updating profile: $e');
+      print("Error updating profile: $e");
       rethrow;
+    }
+  }
+  Future<bool> verifyCurrentPassword(String password) async {
+    try {
+      final currentUser = client.auth.currentUser;
+      if (currentUser == null) return false;
+
+      final response = await client.auth.signInWithPassword(
+        email: currentUser.email!,
+        password: password,
+      );
+      return response.user != null;
+    } catch (e) {
+      return false;
     }
   }
 }

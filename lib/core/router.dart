@@ -94,7 +94,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/cars/:id/edit',
-        name: 'car-edit',  // This is the name you're using in pushNamed
+        name: 'car-edit',
         builder: (context, state) {
           final carId = state.pathParameters['id']!;
           return CarEditPage(carId: carId);
@@ -155,19 +155,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/order-detail/:id',
         name: 'order-detail',
-
-
         builder: (context, state) {
           final orderId = state.pathParameters['id']!;
-          final container = ProviderScope.containerOf(context);
-          final orders = container.read(ordersProvider);
-
-          final order = orders.firstWhere(
-                (o) => o.id == orderId,
-            orElse: () => throw Exception('Order tidak ditemukan'),
-          );
-
-          return OrderDetailPage(order: order);
+          return OrderDetailPage(orderId: orderId);
         },
       ),
       GoRoute(

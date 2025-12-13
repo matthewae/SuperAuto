@@ -1,4 +1,3 @@
-// splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../models/user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -24,15 +24,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('first_launch') ?? true;
     final auth = ref.read(authServiceProvider);
-    await auth.init(); // Initialize auth service to load current user
-    final user = auth.currentUser();
-
+    await auth.init();
+    final session = await sb.Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      final user = session.user;
+    } else {
+    }
 
     if (isFirstLaunch) {
       await prefs.setBool('first_launch', false);
     }
 
-    // Use the authProvider to get the current user
     final authState = ref.read(authProvider);
     authState.when(
       data: (user) {
@@ -41,7 +43,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         }
       },
       loading: () {
-        // Wait a bit and try again
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
             _checkFirstLaunch();
@@ -49,7 +50,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         });
       },
       error: (error, stack) {
-        // If there's an error, go to login
         if (mounted) {
           context.go('/login');
         }

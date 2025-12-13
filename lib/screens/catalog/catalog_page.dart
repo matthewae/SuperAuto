@@ -14,19 +14,22 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 final currentPageProvider = StateProvider<int>((ref) => 0); // Added for pagination
 const int itemsPerPage = 6; // Added for pagination
 
-class CatalogPage extends ConsumerWidget {
+class CatalogPage extends ConsumerStatefulWidget {
   const CatalogPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CatalogPage> createState() => _CatalogPageState();
+}
+
+class _CatalogPageState extends ConsumerState<CatalogPage> {
+  @override
+  Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
     final cars = ref.watch(carsProvider);
 
-    // Debug logging
     debugPrint('Products count: ${products.length}');
     debugPrint('Cars count: ${cars.length}');
 
-    // Find the main car using isMain
     final mainCar = cars.firstWhereOrNull((car) => car.isMain);
     final model = mainCar?.model;
     final selectedCategory = ref.watch(selectedCategoryProvider);
@@ -35,14 +38,16 @@ class CatalogPage extends ConsumerWidget {
 
     final filtered = products.where((p) {
       // Check if product is compatible with all models or with the current car model
-      final matchesModel = model == null || 
-                          p.compatibleModels.isEmpty || 
-                          p.compatibleModels.any((m) => m == 'Semua Model') ||
-                          p.compatibleModels.any((m) => m.trim().toLowerCase() == model.toLowerCase());
-      
+      final matchesModel = model == null ||
+          p.compatibleModels.isEmpty ||
+          p.compatibleModels.any((m) =>
+          m.trim().toLowerCase() == 'semua model' ||
+              m.trim().toLowerCase() == model.toLowerCase()
+          );
+
       final matchesCategory = selectedCategory == null || p.category == selectedCategory;
       final matchesSearch = p.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                          p.description.toLowerCase().contains(searchQuery.toLowerCase());
+          p.description.toLowerCase().contains(searchQuery.toLowerCase());
       return matchesModel && matchesCategory && matchesSearch;
     }).toList();
 
@@ -124,20 +129,44 @@ class CatalogPage extends ConsumerWidget {
                     ),
                     buttonBar: GFButtonBar(
                       children: [
+                        // Di dalam itemBuilder dari ListView.builder
                         GFButton(
-                          onPressed: () {
-                            ref.read(cartProvider.notifier).addItem(
-                              productId: p.id,
-                              productName: p.name,
-                              price: p.price,
-                              imageUrl: p.imageUrl, // Tambahkan imageUrl
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${p.name} ditambahkan ke keranjang!'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
+                          onPressed: () async {
+                            // Tampilkan loading di tombol
+                            setState(() {
+                              // You can add loading state here if needed
+                            });
+                            try {
+                              await ref.read(cartProvider.notifier).addItem(
+                                productId: p.id,
+                                productName: p.name,
+                                price: p.price,
+                                imageUrl: p.imageUrl,
+                              );
+                              if (mounted) { // Pastikan widget masih ada
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${p.name} ditambahkan ke keranjang!'),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Gagal menambahkan ke keranjang: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  // Reset loading state if needed
+                                });
+                              }
+                            }
                           },
                           text: 'Tambah ke Keranjang',
                           icon: const Icon(Icons.add_shopping_cart),

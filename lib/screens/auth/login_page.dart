@@ -3,12 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:getwidget/components/appbar/gf_appbar.dart';
 import 'package:getwidget/components/button/gf_button.dart';
-import 'package:getwidget/getwidget.dart'; // Added this import
+import 'package:getwidget/getwidget.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Added this import
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../providers/app_providers.dart';
 import '../../services/notification_service.dart';
-import '../../data/dummy_data.dart';
 import '../../widgets/neumorphic_header.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -23,32 +22,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   late final TextEditingController passwordController;
   bool _obscurePassword = true;
   bool _isLoading = false;
-
-  // Error messages for validation
   String? _emailError;
   String? _passwordError;
-
   @override
   void initState() {
     super.initState();
     emailController = TextEditingController();
     passwordController = TextEditingController();
   }
-
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
-
-  // Validasi email
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email tidak boleh kosong';
     }
 
-    // Regex untuk validasi email
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Format email tidak valid';
@@ -56,8 +48,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     return null;
   }
-
-  // Validasi password
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password tidak boleh kosong';
@@ -65,8 +55,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     return null;
   }
-
-  // Validasi form sebelum submit
   bool _validateForm() {
     setState(() {
       _emailError = _validateEmail(emailController.text);
@@ -133,7 +121,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         errorText: _emailError,
                       ),
                       onChanged: (value) {
-                        // Clear error when user starts typing
                         if (_emailError != null) {
                           setState(() {
                             _emailError = null;
@@ -173,7 +160,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                       obscureText: _obscurePassword,
                       onChanged: (value) {
-                        // Clear error when user starts typing
                         if (_passwordError != null) {
                           setState(() {
                             _passwordError = null;
@@ -186,7 +172,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       color: Theme.of(context).colorScheme.primary,
                       fullWidthButton: true,
                       onPressed: _isLoading ? null : () async {
-                        // Validasi form sebelum submit
                         if (!_validateForm()) {
                           return;
                         }
@@ -207,16 +192,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           if (user != null) {
                             print('Login successful, initializing notifications...');
                             await NotificationService().init();
-                            print('Notifications initialized, triggering dummy data seeding...');
-                            
-                            try {
-                              // Await the seederProvider future
-                              await ref.read(seederProvider.future);
-                              print('Dummy data seeding completed');
-                            } catch (e) {
-                              print('Error during dummy data seeding: $e');
-                              // Continue with the login flow even if seeding fails
-                            }
 
                             if (context.mounted) {
                               print('Navigating to home page...');

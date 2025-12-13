@@ -1,17 +1,16 @@
-// lib/models/order.dart
 class Order {
   final String id;
   final String userId;
-  final String? userName;
-  final List<OrderItem> items; // hanya untuk keperluan Flutter
+  final String? userName; // Bisa null
+  final List<OrderItem> items;
   final double total;
   final DateTime createdAt;
   final String status;
-  final String? trackingNumber;
-  final String? shippingMethod;
-  final String? shippingAddress;
-  final DateTime? updatedAt;
-  final String? paymentMethod;
+  final String? trackingNumber; // Bisa null
+  final String? shippingMethod; // Bisa null
+  final String? shippingAddress; // Bisa null
+  final DateTime? updatedAt; // Bisa null
+  final String? paymentMethod; // Bisa null
 
   const Order({
     required this.id,
@@ -46,18 +45,22 @@ class Order {
 
   factory Order.fromMap(Map<String, dynamic> map, {List<OrderItem> items = const []}) {
     return Order(
-      id: map['id'] as String,
-      userId: map['userId'] as String,
-      userName: map['userName'] as String?,
-      items: items, // Gunakan items yang diberikan atau default ke list kosong
-      total: (map['total'] as num).toDouble(),
-      status: map['status'] as String? ?? 'pending',
-      trackingNumber: map['trackingNumber'] as String?,
-      shippingMethod: map['shippingMethod'] as String?,
-      shippingAddress: map['shippingAddress'] as String?,
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
-      paymentMethod: map['paymentMethod'] as String?,
+      id: map['id'] as String? ?? '',
+      userId: map['user_id'] as String? ?? '',
+      userName: map['username'] as String?, // Bisa null
+      items: items,
+      total: (map['total'] as num?)?.toDouble() ?? 0.0,
+      status: map['status'] as String? ?? 'pending', // Pastikan selalu ada nilai default
+      trackingNumber: map['tracking_number'] as String?, // Bisa null
+      shippingMethod: map['shipping_method'] as String?, // Bisa null
+      shippingAddress: map['shipping_address'] as String?, // Bisa null
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'])
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'])
+          : null,
+      paymentMethod: map['payment_method'] as String?, // Bisa null
     );
   }
 
@@ -99,7 +102,7 @@ class OrderItem {
   final String productName;
   final double price;
   final int quantity;
-  final String? imageUrl;
+  final String? imageUrl; // Bisa null
 
   const OrderItem({
     required this.id,
@@ -123,15 +126,16 @@ class OrderItem {
     };
   }
 
+  // --- PERBAIKAN UTAMA ADA DI SINI ---
   factory OrderItem.fromMap(Map<String, dynamic> map) {
     return OrderItem(
-      id: map['id'] as String,
-      orderId: map['orderId'] as String,
-      productId: map['productId'] as String,
-      productName: map['productName'] as String,
-      price: (map['price'] as num).toDouble(),
-      quantity: map['quantity'] as int,
-      imageUrl: map['imageUrl'] as String?,
+      id: map['id'] as String? ?? '', // Tambahkan '??' untuk nilai default
+      orderId: map['order_id'] as String? ?? '', // Tambahkan '??' untuk nilai default
+      productId: map['product_id'] as String? ?? '', // Tambahkan '??' untuk nilai default
+      productName: map['product_name'] as String? ?? 'Unknown Product', // Tambahkan '??' untuk nilai default
+      price: (map['price'] as num?)?.toDouble() ?? 0.0, // Tambahkan '?' dan nilai default
+      quantity: map['quantity'] as int? ?? 0, // Tambahkan '?' dan nilai default
+      imageUrl: map['image_url'] as String?, // Ini aman karena sudah nullable
     );
   }
 }

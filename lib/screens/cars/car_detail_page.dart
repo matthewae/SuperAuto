@@ -61,7 +61,6 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Card untuk informasi dasar
             GFCard(
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +106,6 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
             ),
             const SizedBox(height: 24),
 
-            // Tombol aksi
             if (_isSettingMain)
               const Center(child: CircularProgressIndicator())
             else
@@ -145,7 +143,7 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -159,7 +157,7 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(value ?? ''),
           ),
         ],
       ),
@@ -174,27 +172,8 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
     });
 
     try {
-      // 1. Hapus status 'isMain' untuk SEMUA mobil milik user ini
-      final userCars = ref.read(carsProvider);
-      for (final userCar in userCars) {
-        if (userCar.isMain) {
-          await ref.read(carDaoProvider).updateMainCarStatus(
-            userCar.id,
-            false,
-            userId: currentUser.id.toString(),
-          );
-        }
-      }
 
-      // 2. Tetapkan status 'isMain' untuk mobil yang dipilih
-      await ref.read(carDaoProvider).updateMainCarStatus(
-        car.id,
-        true,
-        userId: currentUser.id.toString(),
-      );
-
-      // 3. REFRESH state agar UI langsung update
-      ref.invalidate(carsProvider);
+      await ref.read(carsProvider.notifier).setMainCar(car.id);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,8 +186,8 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal mengubah mobil utama'),
+          SnackBar(
+            content: Text('Gagal mengubah mobil utama: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -290,7 +269,6 @@ class _CarDetailPageState extends ConsumerState<CarDetailPage> {
   }
 }
 
-// Add this extension if not already in your project
 extension IterableExtension<T> on Iterable<T> {
   T? firstWhereOrNull(bool Function(T) test) {
     for (var element in this) {

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:getwidget/getwidget.dart'; // Added this import
+import 'package:getwidget/getwidget.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../providers/app_providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -14,340 +12,199 @@ class RegisterPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
-  late final TextEditingController emailController;
-  late final TextEditingController passwordController;
-  late final TextEditingController confirmPasswordController;
-  late final TextEditingController nameController;
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+
+  bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isLoading = false;
-
-  // Error messages for validation
-  String? _nameError;
-  String? _emailError;
-  String? _passwordError;
-  String? _confirmPasswordError;
-
-  @override
-  void initState() {
-    super.initState();
-    emailController = TextEditingController();
-    passwordController = TextEditingController();
-    confirmPasswordController = TextEditingController();
-    nameController = TextEditingController();
-  }
 
   @override
   void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    nameController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // Validasi nama
-  String? _validateName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Nama tidak boleh kosong';
-    }
-
-    if (value.length < 3) {
-      return 'Nama minimal 3 karakter';
-    }
-
-    return null;
-  }
-
-  // Validasi email
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email tidak boleh kosong';
     }
-
-    // Regex untuk validasi email
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
       return 'Format email tidak valid';
     }
-
     return null;
   }
 
-  // Validasi password
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password tidak boleh kosong';
     }
-
     if (value.length < 6) {
       return 'Password minimal 6 karakter';
     }
-
     return null;
   }
 
-  // Validasi konfirmasi password
   String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Konfirmasi password tidak boleh kosong';
+    if (value != _passwordController.text) {
+      return 'Konfirmasi password tidak cocok';
     }
-
-    if (value != passwordController.text) {
-      return 'Password dan konfirmasi password tidak cocok';
-    }
-
     return null;
-  }
-
-  // Validasi form sebelum submit
-  bool _validateForm() {
-    setState(() {
-      _nameError = _validateName(nameController.text);
-      _emailError = _validateEmail(emailController.text);
-      _passwordError = _validatePassword(passwordController.text);
-      _confirmPasswordError = _validateConfirmPassword(confirmPasswordController.text);
-    });
-
-    return _nameError == null &&
-        _emailError == null &&
-        _passwordError == null &&
-        _confirmPasswordError == null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text("Daftar Akun"),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 0,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: Center(
-              child: Container(
-                width: constraints.maxWidth > 600 ? 400 : double.infinity,
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Image.asset('assets/images/Ori.png', height: 100),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Daftar Akun Baru',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Lengkap',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Nama tidak boleh kosong';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: _validateEmail,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Buat akun Anda untuk mulai menggunakan SuperAuto',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: "Nama",
-                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
-                        ),
-                        prefixIcon: Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        errorText: _nameError,
-                      ),
-                      onChanged: (value) {
-                        // Clear error when user starts typing
-                        if (_nameError != null) {
-                          setState(() {
-                            _nameError = null;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: "Email",
-                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
-                        ),
-                        prefixIcon: Icon(Icons.email, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        errorText: _emailError,
-                      ),
-                      onChanged: (value) {
-                        // Clear error when user starts typing
-                        if (_emailError != null) {
-                          setState(() {
-                            _emailError = null;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: passwordController,
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
-                        ),
-                        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        errorText: _passwordError,
-                      ),
-                      obscureText: _obscurePassword,
-                      onChanged: (value) {
-                        // Clear error when user starts typing
-                        if (_passwordError != null) {
-                          setState(() {
-                            _passwordError = null;
-                          });
-                        }
-
-                        // Also validate confirm password if it has been entered
-                        if (confirmPasswordController.text.isNotEmpty && _confirmPasswordError != null) {
-                          setState(() {
-                            _confirmPasswordError = _validateConfirmPassword(confirmPasswordController.text);
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: confirmPasswordController,
-                      decoration: InputDecoration(
-                        labelText: "Confirm Password",
-                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
-                        ),
-                        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
-                            });
-                          },
-                        ),
-                        errorText: _confirmPasswordError,
-                      ),
-                      obscureText: _obscureConfirmPassword,
-                      onChanged: (value) {
-                        // Clear error when user starts typing
-                        if (_confirmPasswordError != null) {
-                          setState(() {
-                            _confirmPasswordError = null;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    GFButton(
-                      color: Theme.of(context).colorScheme.primary,
-                      fullWidthButton: true,
-                      onPressed: _isLoading ? null : () async {
-                        // Validasi form sebelum submit
-                        if (!_validateForm()) {
-                          return;
-                        }
-
+                      onPressed: () {
                         setState(() {
-                          _isLoading = true;
+                          _obscurePassword = !_obscurePassword;
                         });
+                      },
+                    ),
+                    border: const OutlineInputBorder(),
+                  ),
+                  obscureText: _obscurePassword,
+                  validator: _validatePassword,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Konfirmasi Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
+                    ),
+                    border: const OutlineInputBorder(),
+                  ),
+                  obscureText: _obscureConfirmPassword,
+                  validator: _validateConfirmPassword,
+                ),
+                const SizedBox(height: 24),
+                GFButton(
+                  color: Theme.of(context).colorScheme.primary,
+                  fullWidthButton: true,
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                    if (_formKey.currentState!.validate()) {
+                      setState(() {
+                        _isLoading = true;
+                      });
 
-                        final auth = ref.read(authServiceProvider);
-
-                        final result = await auth.register(
-                          emailController.text,
-                          passwordController.text,
-                          nameController.text,
+                      try {
+                        final result = await ref.read(authProvider.notifier).signup(
+                          name: _nameController.text,
+                          email: _emailController.text,
+                          password: _passwordController.text,
                         );
 
-                        if (result != null) {
-                          if (context.mounted) {
+                        if (mounted) {
+                          if (result != null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result)),
+                              const SnackBar(
+                                content: Text('Pendaftaran berhasil! Silakan login.'),
+                              ),
                             );
+                            Navigator.of(context).pop();
                           }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal mendaftar: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
                           setState(() {
                             _isLoading = false;
                           });
-                          return;
                         }
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Registrasi berhasil, silakan login.")),
-                          );
-                          context.go('/login');
-                        }
-                      },
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text("Buat Akun", style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onPrimary)),
-                      size: GFSize.LARGE,
-                      shape: GFButtonShape.pills,
+                      }
+                    }
+                  },
+                  child: _isLoading
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
-                  ],
+                  )
+                      : const Text('Daftar'),
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Sudah punya akun? Masuk'),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

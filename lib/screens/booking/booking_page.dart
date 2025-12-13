@@ -52,7 +52,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize _time to next hour
     final now = TimeOfDay.now();
     _time = TimeOfDay(hour: now.hour, minute: 0);
     _time = _time.add(hours: 1);
@@ -66,7 +65,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     super.didChangeDependencies();
 
     if (!_isInitialized) {
-      // Pre-fill notes if returning from a previous booking attempt
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null && args is Map) {
         final Map<String, dynamic> argsMap = args as Map<String, dynamic>;
@@ -86,7 +84,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     super.dispose();
   }
 
-  // Calculate final cost based on selected promo
   Future<void> _calculateFinalCost() async {
     if (_selectedPromoId != null) {
       try {
@@ -109,7 +106,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
     });
   }
 
-  // Apply promo code
   Future<void> _applyPromoCode() async {
     final promoCode = _promoCodeController.text.trim();
     if (promoCode.isEmpty) return;
@@ -163,13 +159,11 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         throw Exception('Silakan login terlebih dahulu');
       }
 
-      // Get user's cars
-      final userCars = await ref.read(carDaoProvider).getByUserId(user.idString);
+      final userCars = await ref.read(carDaoProvider).getCachedCarsByUserId(user.idString);
       if (userCars.isEmpty) {
         throw Exception('Anda belum menambahkan mobil. Silakan tambahkan mobil terlebih dahulu.');
       }
 
-      // Find selected car
       final selectedCar = userCars.firstWhere(
             (car) => car.id == _selectedCarId,
         orElse: () => throw Exception('Mobil tidak ditemukan'),
@@ -193,10 +187,8 @@ class _BookingPageState extends ConsumerState<BookingPage> {
         promoId: _selectedPromoId,
       );
 
-      // Save booking
       ref.read(bookingsProvider.notifier).add(booking);
 
-      // Schedule notification
       NotificationService().scheduleServiceReminder(
         id: booking.hashCode,
         title: 'Pengingat Servis',
@@ -359,7 +351,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                       onChanged: (v) {
                         setState(() {
                           _type = v ?? _type;
-                          // Update estimated cost based on service type
                           switch (_type) {
                             case ServiceType.routine:
                               _estimated = 500000.0;
@@ -516,9 +507,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
 
               const SizedBox(height: 8),
 
-              // ---------------------------------------
-              // PROMO SECTION
-              // ---------------------------------------
               Neumorphic(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 style: NeumorphicStyle(
@@ -558,7 +546,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                       ),
                       if (_showPromoSection) ...[
                         const SizedBox(height: 8),
-                        // Promo Code Input
                         Row(
                           children: [
                             Expanded(
@@ -579,7 +566,6 @@ class _BookingPageState extends ConsumerState<BookingPage> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // Available Promos
                         FutureBuilder<List<Promo>>(
                           future: ref.read(promosProvider.notifier).getActivePromosByType('service_discount'),
                           builder: (context, snapshot) {

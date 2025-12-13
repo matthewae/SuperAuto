@@ -1,106 +1,60 @@
-import '../../../data/db/app_database.dart';
-import '../../models/service_booking.dart';
-import 'dart:developer' as developer;
-import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
-import '../../models/promo.dart';
+import '../../models/service_booking.dart';
+import 'dart:convert';
 
 class ServiceBookingDao {
   final Database db;
-
   ServiceBookingDao(this.db);
-  static const String _tableName = 'service_bookings';
 
-  void _log(String message, {bool isError = false}) {
-    if (isError) {
-      developer.log('❌ ServiceBookingDao: $message', error: message);
-    } else {
-      developer.log('ℹ️ ServiceBookingDao: $message');
-    }
+  Future<void> cacheBooking(ServiceBooking booking) async {
+    print('Caching booking: ${booking.id} for user: ${booking.userId}');
+    await db.insert(
+      'service_bookings',
+      booking.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    print('Booking cached successfully');
   }
 
-  Future<int> insert(ServiceBooking booking) async {
-    try {
-      final db = await AppDatabase.instance.database;
-
-      // Calculate final cost with promo discount
-      double finalCost = booking.estimatedCost;
-      if (booking.promoId != null) {
-        final promoResult = await db.query(
-          'promo',
-          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
-          whereArgs: [
-            booking.promoId,
-            'service_discount',
-            DateTime.now().toIso8601String(),
-            DateTime.now().toIso8601String(),
-          ],
-        );
-
-        if (promoResult.isNotEmpty) {
-          final promo = Promo.fromMap(promoResult.first);
-          final discount = promo.calculateDiscount(finalCost);
-          finalCost = finalCost - discount;
-        }
-      }
-
-      // Create a new booking with the calculated final cost
-      final updatedBooking = booking.copyWith(totalCost: finalCost);
-
-      final id = await db.insert(
-        _tableName,
-        updatedBooking.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      _log('Inserted booking ${booking.id} with final cost $finalCost');
-      return id;
-    } catch (e, stack) {
-      _log('Error inserting booking: $e\n$stack', isError: true);
-      rethrow;
-    }
+  Future<List<ServiceBooking>> getAllCachedBookings() async {
+    print('Getting all cached bookings...');
+    final results = await db.query(
+      'service_bookings',
+      orderBy: 'scheduledAt DESC',
+    );
+    print('Found ${results.length} cached bookings');
+    return results.map((e) => ServiceBooking.fromMap(e)).toList();
   }
 
-  Future<List<ServiceBooking>> getAll() async {
-    try {
-      final db = await AppDatabase.instance.database;
-      final results = await db.query(
-        _tableName,
-        orderBy: 'scheduledAt DESC',
-      );
-      _log('Fetched ${results.length} bookings');
-      return results.map((e) => ServiceBooking.fromMap(e)).toList();
-    } catch (e, stack) {
-      _log('Error fetching bookings: $e\n$stack', isError: true);
-      rethrow;
-    }
-  }
-
-  Future<void> debugPrintAllBookings() async {
-    try {
-      final db = await AppDatabase.instance.database;
-      final results = await db.query(_tableName);
-      _log('=== BOOKINGS IN DATABASE (${results.length}) ===');
-      for (var item in results) {
-        _log('Booking: ${item['id']} - ${item['status']} - Est: ${item['estimatedCost']} - Total: ${item['totalCost']}');
-      }
-    } catch (e) {
-      _log('Error printing bookings: $e', isError: true);
-    }
-  }
-
-  Future<List<ServiceBooking>> getByUserId(String userId) async {
-    final db = await AppDatabase.instance.database;
+  Future<List<ServiceBooking>> getCachedBookingsByUserId(String userId) async {
+    print('Getting cached bookings for user: $userId');
     final results = await db.query(
       'service_bookings',
       where: 'userId = ?',
       whereArgs: [userId],
       orderBy: 'scheduledAt DESC',
     );
+    print('Found ${results.length} bookings for user $userId');
     return results.map((e) => ServiceBooking.fromMap(e)).toList();
   }
 
+  Future<void> clearAllCache() async {
+    print('Clearing all booking cache...');
+    await db.delete('service_bookings');
+    print('All booking cache cleared');
+  }
+
+  Future<void> clearCacheForUser(String userId) async {
+    print('Clearing booking cache for user: $userId');
+    await db.delete(
+      'service_bookings',
+      where: 'userId = ?',
+      whereArgs: [userId],
+    );
+    print('Cache cleared for user $userId');
+  }
+
   Future<ServiceBooking?> getById(String id) async {
-    final db = await AppDatabase.instance.database;
     final results = await db.query(
       'service_bookings',
       where: 'id = ?',
@@ -112,215 +66,72 @@ class ServiceBookingDao {
     return null;
   }
 
+  Future<List<ServiceBooking>> getByUserId(String userId) async {
+    return await getCachedBookingsByUserId(userId);
+  }
+  Future<List<ServiceBooking>> getAll() async {
+    return await getAllCachedBookings();
+  }
+
+  Future<int> delete(String id) async {
+    print('Deleting booking from cache: $id');
+    final result = await db.delete(
+      'service_bookings',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    print('Booking deleted from cache');
+    return result;
+  }
+
   Future<int> update(ServiceBooking booking) async {
-    final db = await AppDatabase.instance.database;
-    return await db.update(
+    print('Updating booking in cache: ${booking.id}');
+    final result = await db.update(
+      'service_bookings',
+      booking.toMap(),
+      where: 'id = ?',
+      whereArgs: [booking.id],
+    );
+    print('Booking updated in cache');
+    return result;
+  }
+
+  Future<int> updateStatusAndDetails(ServiceBooking booking) async {
+    print('Updating booking status and details: ${booking.id}');
+    final result = await db.update(
       'service_bookings',
       {
-        ...booking.toMap(),
-        'updatedAt': DateTime.now().toIso8601String(),
+        'status': booking.status,
+        'jobs': jsonEncode(booking.jobs),
+        'parts': jsonEncode(booking.parts),
+        'km': booking.km,
+        'totalCost': booking.totalCost,
+        'adminNotes': booking.adminNotes,
+        'statusHistory': jsonEncode(booking.statusHistory ?? []),
+        'updatedAt': booking.updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [booking.id],
     );
+    print('Booking status and details updated');
+    return result;
   }
 
-  Future<int> updateStatus(String id, String status) async {
-    final db = await AppDatabase.instance.database;
-    return await db.update(
-      'service_bookings',
-      {
-        'status': status,
-        'updatedAt': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  Future<int> updateStatusAndDetails(ServiceBooking booking) async {
-    try {
-      // HAPUS BLOK PERHITUNGAN DISINI
-      // Kita tidak lagi menghitung diskon di sini.
-      // totalCost yang diterima dari parameter 'booking' adalah harga final yang ditentukan admin.
-      // double finalCost = booking.estimatedCost;
-      // if (booking.promoId != null) {
-      //   final promoResult = await db.query(
-      //     'promo',
-      //     where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
-      //     whereArgs: [
-      //       booking.promoId,
-      //       'service_discount',
-      //       DateTime.now().toIso8601String(),
-      //       DateTime.now().toIso8601String(),
-      //     ],
-      //   );
-
-      //   if (promoResult.isNotEmpty) {
-      //     final promo = Promo.fromMap(promoResult.first);
-      //     final discount = promo.calculateDiscount(finalCost);
-      //     finalCost = finalCost - discount;
-      //   }
-      // }
-
-      // Create a new booking with the calculated final cost
-      // final updatedBooking = booking.copyWith(totalCost: finalCost);
-      // GUNAKAN LANGSUNG 'booking' YANG DITERIMA SEBAGAI PARAMETER
-
-      final result = await db.update(
-        'service_bookings',
-        {
-          'status': booking.status,
-          'jobs': jsonEncode(booking.jobs),
-          'parts': jsonEncode(booking.parts),
-          'km': booking.km,
-          'totalCost': booking.totalCost, // Simpan totalCost langsung tanpa perhitungan ulang
-          'adminNotes': booking.adminNotes,
-          'updatedAt': DateTime.now().toIso8601String(),
-          'statusHistory': booking.statusHistory != null ? jsonEncode(booking.statusHistory) : null,
-        },
-        where: 'id = ?',
-        whereArgs: [booking.id],
-      );
-      _log('Updated booking ${booking.id} with status ${booking.status} and final cost ${booking.totalCost}');
-      return result;
-    } catch (e, stack) {
-      _log('Error updating booking: $e\n$stack', isError: true);
-      rethrow;
+  Future<void> debugPrintAllBookings() async {
+    final results = await db.query('service_bookings');
+    print('ALL BOOKINGS IN CACHE (${results.length}) ===');
+    for (var item in results) {
+      print('      ID: ${item['id']}');
+      print('      User: ${item['userId']}');
+      print('      Status: ${item['status']}');
+      print('      Service: ${item['serviceType']}');
+      print('      Scheduled: ${item['scheduledAt']}');
+      print('   ---');
     }
   }
 
-
-  Future<List<ServiceBooking>> getByStatus(String status) async {
-    final db = await AppDatabase.instance.database;
-    final results = await db.query(
-      'service_bookings',
-      where: 'status = ?',
-      whereArgs: [status],
-      orderBy: 'scheduledAt ASC',
-    );
-    return results.map((e) => ServiceBooking.fromMap(e)).toList();
-  }
-
-  Future<List<ServiceBooking>> getUpcoming() async {
-    final db = await AppDatabase.instance.database;
-    final now = DateTime.now();
-    final results = await db.query(
-      'service_bookings',
-      where: 'scheduledAt >= ?',
-      whereArgs: [now.toIso8601String()],
-      orderBy: 'scheduledAt ASC',
-    );
-    return results.map((e) => ServiceBooking.fromMap(e)).toList();
-  }
-
-  Future<List<ServiceBooking>> getToday() async {
-    final db = await AppDatabase.instance.database;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-
-    final results = await db.query(
-      'service_bookings',
-      where: 'scheduledAt >= ? AND scheduledAt < ?',
-      whereArgs: [
-        today.toIso8601String(),
-        tomorrow.toIso8601String(),
-      ],
-      orderBy: 'scheduledAt ASC',
-    );
-    return results.map((e) => ServiceBooking.fromMap(e)).toList();
-  }
-
-  Future<List<ServiceBooking>> getByCarId(String carId) async {
-    final db = await AppDatabase.instance.database;
-    final results = await db.query(
-      'service_bookings',
-      where: 'carId = ?',
-      whereArgs: [carId],
-      orderBy: 'scheduledAt DESC',
-    );
-    return results.map((e) => ServiceBooking.fromMap(e)).toList();
-  }
-
-  Future<int> delete(String id) async {
-    final db = await AppDatabase.instance.database;
-    return await db.delete(
-      'service_bookings',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  // Method to calculate final cost with promo discount
-  Future<double> calculateFinalCost(String bookingId) async {
-    try {
-      final booking = await getById(bookingId);
-      if (booking == null) return 0.0;
-
-      // Use totalCost if available, otherwise use estimatedCost
-      double baseCost = booking.totalCost ?? booking.estimatedCost ?? 0.0;
-      
-      // If totalCost is already set, return it directly without applying promo
-      if (booking.totalCost != null) {
-        return baseCost;
-      }
-
-      // Only apply promo if we're using estimatedCost
-      if (booking.promoId != null && baseCost > 0) {
-        final db = await AppDatabase.instance.database;
-        final result = await db.query(
-          'promo',
-          where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
-          whereArgs: [
-            booking.promoId,
-            'service_discount',
-            DateTime.now().toIso8601String(),
-            DateTime.now().toIso8601String(),
-          ],
-        );
-
-        if (result.isNotEmpty) {
-          final promo = Promo.fromMap(result.first);
-          final discount = promo.calculateDiscount(baseCost);
-          baseCost = baseCost - discount;
-        }
-      }
-
-      return baseCost;
-    } catch (e, stack) {
-      _log('Error calculating final cost: $e\n$stack', isError: true);
-      rethrow;
-    }
-  }
-
-  // Method to calculate discount amount
-  Future<double> calculateDiscount(String bookingId) async {
-    try {
-      final booking = await getById(bookingId);
-      if (booking == null || booking.estimatedCost == null || booking.promoId == null) return 0.0;
-
-      final db = await AppDatabase.instance.database;
-      final result = await db.query(
-        'promo',
-        where: 'id = ? AND type = ? AND start <= ? AND end >= ?',
-        whereArgs: [
-          booking.promoId,
-          'service_discount',
-          DateTime.now().toIso8601String(),
-          DateTime.now().toIso8601String(),
-        ],
-      );
-
-      if (result.isNotEmpty) {
-        final promo = Promo.fromMap(result.first);
-        return promo.calculateDiscount(booking.estimatedCost!);
-      }
-
-      return 0.0;
-    } catch (e, stack) {
-      _log('Error calculating discount: $e\n$stack', isError: true);
-      rethrow;
-    }
+  Future<int> insert(ServiceBooking booking) async {
+    await cacheBooking(booking);
+    return 1;
   }
 }

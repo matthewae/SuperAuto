@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/promo.dart';
-import '../../providers/app_providers.dart';
-
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import '../../widgets/neumorphic_header.dart';
 
 
@@ -155,102 +151,36 @@ class HomePage extends ConsumerWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          const NeumorphicHeader(title: "Selamat Datang", subtitle: "Jelajahi layanan kami"),
-          const SizedBox(height: 12),
-          FutureBuilder<List<Promo>>(
-            future: ref.read(promosProvider.notifier).getActivePromos(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final promos = snapshot.data ?? [];
-
-              if (promos.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
-              return CarouselSlider(
-                options: CarouselOptions(
-                  height: 180.0,
-                  enlargeCenterPage: true,
-                  autoPlay: true,
-                  aspectRatio: 16 / 9,
-                  autoPlayCurve: Curves.fastOutSlowIn,
-                  enableInfiniteScroll: true,
-                  autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                  viewportFraction: 0.8,
-                ),
-                items: promos.map((promo) {
-                  return Builder(
-                    builder: (BuildContext context) {
-                      return InkWell(
-                            onTap: () => context.push('/promo'),
-                            child: Container(
-                              width: MediaQuery.of(context).size.width,
-                              margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                              decoration: BoxDecoration(
-                                color: Colors.amber,
-                                borderRadius: BorderRadius.circular(8.0),
-                                image: DecorationImage(
-                                  image: AssetImage(promo.imageUrl ?? 'assets/images/default_promo.png'),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  promo.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    shadows: [
-                                      Shadow(
-                                        blurRadius: 5.0,
-                                        color: Colors.black,
-                                        offset: Offset(2.0, 2.0),
-                                      ),
-                                    ],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          );
-                    },
-                  );
-                }).toList(),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Column(
-            children: [
-              Card(
-                child: ListTile(
-                  title: const Text('Mobil Utama'),
-                  subtitle: const Text('Pilih atau tambahkan mobil'),
-                  trailing: const Icon(Icons.directions_car),
-                  onTap: () => context.push('/cars'),
-                ),
-              ),
-              _buildFeatureCard(
-                context: context,
-                icon: Icons.build,
-                title: 'Booking Servis',
-                subtitle: 'Jadwalkan servis mobil Anda',
-                onTap: () => context.push('/booking'),
-                color: Colors.orange,
-              ),
-            ],
-          ),
-            
+            const NeumorphicHeader(
+              title: "Selamat Datang",
+              subtitle: "Jelajahi layanan kami"
+            ),
             const SizedBox(height: 16),
+            
+            // Mobil Utama Card
+            Card(
+              child: ListTile(
+                title: const Text('Mobil Utama'),
+                subtitle: const Text('Pilih atau tambahkan mobil'),
+                trailing: const Icon(Icons.directions_car),
+                onTap: () => context.push('/cars'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Layanan Utama
+            _buildFeatureCard(
+              context: context,
+              icon: Icons.build,
+              title: 'Booking Servis',
+              subtitle: 'Jadwalkan servis mobil Anda',
+              onTap: () => context.push('/booking'),
+              color: Colors.orange,
+            ),
+            
+            const SizedBox(height: 24),
             const Text(
               'Lainnya',
               style: TextStyle(
@@ -258,12 +188,14 @@ class HomePage extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            
+            // Action Buttons Row 1
             Row(
               children: [
                 _buildActionButton(
                   context: context,
-                  text: 'Service tracking',
+                  text: 'Riwayat Servis',
                   icon: Icons.history,
                   onTap: () => context.push('/bookings'),
                 ),
@@ -275,7 +207,10 @@ class HomePage extends ConsumerWidget {
                 ),
               ],
             ),
+            
             const SizedBox(height: 8),
+            
+            // Action Buttons Row 2
             Row(
               children: [
                 _buildActionButton(

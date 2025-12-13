@@ -1,3 +1,4 @@
+
 import 'package:sqflite/sqflite.dart';
 import '../../../data/db/app_database.dart';
 import '../../models/product.dart';
@@ -7,21 +8,20 @@ class ProductDao {
 
   ProductDao(this.db);
 
-  // In lib/data/dao/product_dao.dart
+
   Future<int> insert(Product product) async {
     try {
       final map = product.toMap();
-      print('Inserting product: $map');
-      final id = await db.insert('products', map);
-      print('Product inserted with ID: $id');
+      print('Caching product: $map');
+      final id = await db.insert('products', map, conflictAlgorithm: ConflictAlgorithm.replace);
+      print('Product cached with ID: $id');
       return id;
     } catch (e) {
-      print('Error inserting product: $e');
+      print('Error caching product: $e');
       rethrow;
     }
   }
 
-  // In lib/data/dao/product_dao.dart
   Future<List<Product>> getAll() async {
     try {
       final results = await db.query('products');
@@ -29,13 +29,13 @@ class ProductDao {
         try {
           return Product.fromMap(e);
         } catch (e) {
-          print('Error parsing product: $e');
+          print('Error parsing product from cache: $e');
           print('Problematic data: $e');
           rethrow;
         }
       }).toList();
     } catch (e) {
-      print('Error in ProductDao.getAll(): $e');
+      print('Error getting all products from cache: $e');
       rethrow;
     }
   }
@@ -55,5 +55,16 @@ class ProductDao {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<void> deleteAll() async {
+    try {
+      print('Clearing all products from local cache...');
+      await db.delete('products');
+      print('Local cache cleared.');
+    } catch (e) {
+      print('Error clearing product cache: $e');
+      rethrow;
+    }
   }
 }

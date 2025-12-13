@@ -17,7 +17,6 @@ class _AdminBookingActivePageState extends ConsumerState<AdminBookingActivePage>
   Widget build(BuildContext context) {
     final allBookings = ref.watch(bookingsProvider);
 
-    // Filter booking aktif (selain completed & cancelled)
     final activeBookings = allBookings.where((b) =>
     b.status != "completed" && b.status != "cancelled").toList();
 
@@ -43,7 +42,6 @@ class _AdminBookingActivePageState extends ConsumerState<AdminBookingActivePage>
     );
   }
 
-  // ---------------- FILTER ----------------
   Widget _buildFilterDropdown() {
     return DropdownButton<String>(
       value: selectedFilter,
@@ -61,13 +59,11 @@ class _AdminBookingActivePageState extends ConsumerState<AdminBookingActivePage>
     );
   }
 
-  // Apply filter
   List<ServiceBooking> _applyFilter(List<ServiceBooking> list) {
     if (selectedFilter == "all") return list;
     return list.where((b) => b.status == selectedFilter).toList();
   }
 
-  // ---------------- CARD ----------------
   Widget _buildBookingCard(BuildContext context, ServiceBooking b) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -76,7 +72,6 @@ class _AdminBookingActivePageState extends ConsumerState<AdminBookingActivePage>
         subtitle: Text("Status: ${b.status}"),
         trailing: const Icon(Icons.arrow_forward_ios),
         onTap: () {
-          // go to detail
         },
       ),
     );

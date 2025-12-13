@@ -1,5 +1,3 @@
-// Create a new file: car_edit_page.dart
-
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +40,7 @@ class _CarEditPageState extends ConsumerState<CarEditPage> {
       _yearController.text = _car!.year.toString();
       _plateController.text = _car!.plateNumber;
       _vinController.text = _car!.vin;
-      _engineController.text = _car!.engineNumber;
+      _engineController.text = _car!.engineNumber ?? '';
       _kmController.text = _car!.initialKm.toString();
     } catch (e) {
       debugPrint('Error loading car: $e');

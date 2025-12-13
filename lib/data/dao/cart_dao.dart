@@ -1,21 +1,32 @@
+
 import 'package:sqflite/sqflite.dart';
 import '../../models/cart.dart';
 import '../db/app_database.dart';
 import '../../models/cart.dart' show CartItem, CartState;
+
 class CartDao {
   static final CartDao instance = CartDao._internal();
   CartDao._internal();
 
   Future<Database> get _db async => await AppDatabase.instance.database;
 
-  /// Get a user's cart with all items
-  /// Get a user's cart with all items as CartState
   Future<CartState> getCart(String userId) async {
     final items = await getCartItems(userId);
-    return CartState(items: items);
+
+    String? appliedPromoId;
+    double discount = 0.0;
+    if (items.isNotEmpty) {
+      appliedPromoId = items.first.appliedPromoId;
+      discount = items.first.discount;
+    }
+
+    return CartState(
+      items: items,
+      appliedPromoId: appliedPromoId,
+      discount: discount,
+    );
   }
 
-  /// Get all cart items for a user
   Future<List<CartItem>> getCartItems(String userId) async {
     final db = await _db;
     final result = await db.query(
@@ -27,11 +38,9 @@ class CartDao {
     return result.map((e) => CartItem.fromMap(e)).toList();
   }
 
-  /// Add or update an item in the cart
   Future<void> upsertItem(CartItem item) async {
     final db = await _db;
 
-    // Check if item already exists
     final existing = await db.query(
       'cart_items',
       where: 'userId = ? AND productId = ?',
@@ -39,7 +48,6 @@ class CartDao {
     );
 
     if (existing.isNotEmpty) {
-      // Update quantity and promo details if item exists
       final currentQuantity = existing.first['quantity'] as int;
       await db.update(
         'cart_items',
@@ -53,7 +61,6 @@ class CartDao {
         whereArgs: [item.userId, item.productId],
       );
     } else {
-      // Insert new item
       await db.insert(
         'cart_items',
         item.toMap(),
@@ -62,7 +69,6 @@ class CartDao {
     }
   }
 
-  /// Update promo details for all items in a user's cart
   Future<void> updatePromoDetails(String userId, String? promoId, double discount) async {
     final db = await _db;
     await db.update(
@@ -77,7 +83,6 @@ class CartDao {
     );
   }
 
-  /// Update item quantity
   Future<void> updateItemQuantity({
     required String userId,
     required String productId,
@@ -100,7 +105,6 @@ class CartDao {
     );
   }
 
-  /// Remove an item from cart
   Future<void> deleteItem(String userId, String productId) async {
     final db = await _db;
     await db.delete(
@@ -110,7 +114,6 @@ class CartDao {
     );
   }
 
-  /// Clear all items from user's cart
   Future<void> clearCart(String userId) async {
     final db = await _db;
     await db.delete(
@@ -120,7 +123,6 @@ class CartDao {
     );
   }
 
-  /// Get the count of items in cart
   Future<int> getCartItemCount(String userId) async {
     final db = await _db;
     final result = await db.rawQuery(

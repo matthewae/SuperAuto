@@ -104,10 +104,10 @@ class AppDatabase {
   CREATE TABLE IF NOT EXISTS promo (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'service_discount' or 'product_discount'
-    value REAL NOT NULL, -- percentage (0-1) or fixed amount (>1)
-    start TEXT NOT NULL, -- ISO8601 string
-    end TEXT NOT NULL, -- ISO8601 string
+    type TEXT NOT NULL, 
+    value REAL NOT NULL, 
+    start TEXT NOT NULL, 
+    end TEXT NOT NULL, 
     createdAt TEXT NOT NULL,
     updatedAt TEXT,
     imageUrl TEXT

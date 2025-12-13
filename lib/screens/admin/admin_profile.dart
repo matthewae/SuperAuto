@@ -5,12 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../providers/app_providers.dart';
 import '../../core/theme.dart';
 
-// Placeholder for an authentication service
 class AuthService extends StateNotifier<bool> {
-  AuthService() : super(true); // true means logged in
+  AuthService() : super(true);
 
   void logout() {
-    state = false; // Set state to logged out
+    state = false;
     print('Admin logged out');
   }
 }
@@ -70,7 +69,7 @@ class AdminProfilePage extends ConsumerWidget {
                 context.go('/login');
               },
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50), // full width button
+                minimumSize: const Size.fromHeight(50),
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),

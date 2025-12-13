@@ -18,10 +18,9 @@ class BookingDetailPage extends ConsumerWidget {
 
     final isAdmin = ref.watch(authProvider).valueOrNull?.isAdmin ?? false;
 
-    // For admin, we'll use the StateNotifier directly
     if (isAdmin) {
       final bookings = ref.watch(bookingsProvider);
-      print('📋 BookingDetailPage (Admin): Loaded ${bookings.length} total bookings');
+      print('BookingDetailPage (Admin): Loaded ${bookings.length} total bookings');
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -34,9 +33,9 @@ class BookingDetailPage extends ConsumerWidget {
         body: _buildBookingList(bookings, context, ref),
       );
     }
-    // For regular users, use the FutureProvider
     else {
-      final bookingsAsync = ref.watch(userBookingsProviderAlt);
+      final bookings = ref.watch(bookingsProvider);
+      print('BookingDetailPage: Loaded ${bookings.length} bookings for current user');
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -46,17 +45,7 @@ class BookingDetailPage extends ConsumerWidget {
           title: const Text('Detail Booking'),
           centerTitle: true,
         ),
-        body: bookingsAsync.when(
-          data: (bookings) {
-            print('📋 BookingDetailPage: Loaded ${bookings.length} bookings for current user');
-            return _buildBookingList(bookings, context, ref);
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) {
-            print('❌ BookingDetailPage Error: $error');
-            return Center(child: Text('Error: $error'));
-          },
-        ),
+        body: _buildBookingList(bookings, context, ref),
       );
     }
   }
@@ -64,12 +53,12 @@ class BookingDetailPage extends ConsumerWidget {
   Widget _buildBookingList(List<ServiceBooking> bookings, BuildContext context, WidgetRef ref) {
     try {
       final booking = bookings.firstWhere((b) => b.id == bookingId);
-      print('✅ Found booking: ${booking.id} - Status: ${booking.status}');
-      print('📜 Status History: ${booking.statusHistory}');
+      print('Found booking: ${booking.id} - Status: ${booking.status}');
+      print('Status History: ${booking.statusHistory}');
       return _buildBookingDetails(booking, context, ref);
     } catch (e) {
-      print('❌ Booking not found: $bookingId');
-      print('   Available bookings: ${bookings.map((b) => b.id).join(", ")}');
+      print('Booking not found: $bookingId');
+      print('Available bookings: ${bookings.map((b) => b.id).join(", ")}');
       return const Center(child: Text('Booking tidak ditemukan'));
     }
   }
@@ -187,7 +176,6 @@ class BookingDetailPage extends ConsumerWidget {
   }
 
   Widget _buildStatusTimeline(ServiceBooking booking,context) {
-    // Parse status history dari booking
     final List<Map<String, dynamic>> timelineEvents = [];
     debugPrint('Booking Status History: ${booking.statusHistory}');
 
@@ -208,14 +196,12 @@ class BookingDetailPage extends ConsumerWidget {
       timelineEvents.add({'status': 'pending', 'timestamp': booking.createdAt, 'notes': null});
     }
 
-    // Tambahkan current status jika belum ada
-    // Pastikan status saat ini adalah yang terbaru
+
     final currentStatusExists = timelineEvents.any((event) => event['status'] == booking.status);
     if (!currentStatusExists) {
       timelineEvents.add({'status': booking.status, 'timestamp': booking.updatedAt ?? DateTime.now(), 'notes': null});
     }
 
-    // Sort berdasarkan waktu
     timelineEvents.sort((a, b) => (a['timestamp'] as DateTime).compareTo(b['timestamp'] as DateTime));
 
     print('🔍 Timeline Data:');

@@ -8,7 +8,8 @@ import '../../models/service_booking.dart';
 import '../../models/user.dart';
 import '../../models/car.dart';
 import '../booking/booking_detail_page.dart';
-import 'package:flutter/foundation.dart'; // for debugPrint
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminHistoryPage extends ConsumerStatefulWidget {
   const AdminHistoryPage({super.key});
@@ -28,7 +29,6 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
     final ordersAsync = ref.watch(allOrdersProvider);
     final bookings = ref.watch(bookingsProvider);
 
-    // Filter services based on status
     final serviceHistory = bookings.where((b) {
       if (showCompletedServices && b.status == "completed") return true;
       if (showCancelledServices && b.status == "cancelled") return true;
@@ -182,26 +182,44 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
       if (userId == null || carId == null) {
         return {
           'userName': 'Data tidak lengkap',
-          'userPhone': '-',
+          'userEmail': '-',
           'carInfo': 'Data kendaraan tidak tersedia',
         };
       }
 
-      final user = await ref.read(userDaoProvider).getUserById(userId);
-      final car = await ref.read(carDaoProvider).getById(carId);
+      final supabase = Supabase.instance.client;
+
+//  user data
+      final userData = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
+
+//  car data
+      final carData = await supabase
+          .from('cars')
+          .select()
+          .eq('id', carId)
+          .single();
+
+      final userName = userData['name'] ?? 'Unknown User';
+      final carInfo = carData != null
+          ? '${carData['brand']} ${carData['model']} (${carData['plate_number']})'
+          : 'Car not found';      final car = await ref.read(carDaoProvider).getById(carId);
 
       return {
-        'userName': user?.name ?? 'Pelanggan',
-        'userPhone': user?.email ?? '-',
-        'carInfo': car != null
-            ? '${car.brand} ${car.model} (${car.plateNumber})'
+        'userName': userData['name'] ?? 'Pelanggan',
+        'userEmail': userData['email'] ?? '-',
+        'carInfo': carData != null
+            ? '${carData['brand']} ${carData['model']} (${carData['plate_number']})'
             : 'Mobil tidak ditemukan',
       };
     } catch (e) {
-      debugPrint('❌ Error in _getUserAndCarDetails: $e');
+      debugPrint('Error in _getUserAndCarDetails: $e');
       return {
         'userName': 'Error memuat data',
-        'userPhone': '-',
+        'userEmail': '-',
         'carInfo': 'Error memuat data mobil',
       };
     }
@@ -232,7 +250,7 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
                       builder: (context, snapshot) {
                         final details = snapshot.data ?? {
                           'userName': 'Loading...',
-                          'userPhone': '-',
+                          'userEmail': '-',
                           'carInfo': 'Mengambil data...',
                         };
 
@@ -286,7 +304,7 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
                                 ),
                                 const SizedBox(height: 12),
                                 _buildInfoRow('Nama', details['userName']!),
-                                _buildInfoRow('E-Mail', details['userPhone']!),
+                                _buildInfoRow('E-Mail', details['userEmail']!),
                                 _buildInfoRow('Mobil', details['carInfo']!),
                                 const Divider(height: 20),
                                 _buildInfoRow('Layanan', _formatServiceType(booking.serviceType)),
@@ -424,7 +442,6 @@ class _AdminHistoryPageState extends ConsumerState<AdminHistoryPage> {
     );
   }
 
-  // Helper methods
   String _formatServiceType(String type) {
     switch (type) {
       case 'regular':

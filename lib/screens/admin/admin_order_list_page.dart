@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,14 @@ class AdminOrderListPage extends ConsumerWidget {
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              ref.invalidate(allOrdersProvider);
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -40,24 +49,32 @@ class AdminOrderListPage extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   err.toString(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
           data: (orders) {
-            // Debug log all orders and their statuses
-            debugPrint('All orders statuses: ${orders.map((o) => o.status).toList()}');
+            debugPrint(
+              'All orders from Supabase: ${orders.map((o) => 'ID: ${o.id}, Status: ${o.status}').toList()}',
+            );
 
             final filteredOrders = orders.where((order) {
-              final shouldInclude = order.status != 'delivered' && order.status != 'cancelled';
-              debugPrint('Order ${order.id} - status: ${order.status} - include: $shouldInclude');
+              final shouldInclude =
+                  order.status != 'delivered' && order.status != 'cancelled';
+              debugPrint(
+                'Order ${order.id} - status: ${order.status} - include: $shouldInclude',
+              );
               return shouldInclude;
             }).toList();
 
             debugPrint('Filtered orders count: ${filteredOrders.length}');
-            debugPrint('Filtered orders statuses: ${filteredOrders.map((o) => o.status).toList()}');
+            debugPrint(
+              'Filtered orders statuses: ${filteredOrders.map((o) => o.status).toList()}',
+            );
 
             if (filteredOrders.isEmpty) {
               return const Center(
@@ -81,13 +98,11 @@ class AdminOrderListPage extends ConsumerWidget {
               itemBuilder: (context, i) {
                 final order = filteredOrders[i];
 
-                // Format tanggal
                 final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
                 final createdDate = order.createdAt != null
                     ? dateFormat.format(order.createdAt!)
                     : 'Unknown date';
 
-                // Tentukan warna dan ikon status
                 Color statusColor;
                 IconData statusIcon;
                 switch (order.status) {
@@ -119,7 +134,9 @@ class AdminOrderListPage extends ConsumerWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () {
@@ -130,7 +147,6 @@ class AdminOrderListPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header: Order ID dan Status
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -145,7 +161,10 @@ class AdminOrderListPage extends ConsumerWidget {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: statusColor.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
@@ -153,7 +172,11 @@ class AdminOrderListPage extends ConsumerWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(statusIcon, size: 16, color: statusColor),
+                                    Icon(
+                                      statusIcon,
+                                      size: 16,
+                                      color: statusColor,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       order.status,
@@ -170,14 +193,16 @@ class AdminOrderListPage extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
 
-                          // Customer Info (PERUBAHAN DI SINI)
                           Row(
                             children: [
-                              Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                              Icon(
+                                Icons.person,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  // Hanya tampilkan userName, dengan teks default jika null
                                   order.userName ?? 'Customer Name Not Set',
                                   style: TextStyle(
                                     fontSize: 14,
@@ -190,10 +215,13 @@ class AdminOrderListPage extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
 
-                          // Date Info
                           Row(
                             children: [
-                              Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                              Icon(
+                                Icons.access_time,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 createdDate,
@@ -206,7 +234,6 @@ class AdminOrderListPage extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
 
-                          // Footer: Total dan Arrow
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [

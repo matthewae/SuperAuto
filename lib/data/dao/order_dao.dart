@@ -1,7 +1,7 @@
 import 'package:uuid/uuid.dart';
-import '../../../data/db/app_database.dart';
+import '../db/app_database.dart';
 import '../../models/order.dart';
-import '../../models/cart.dart';
+import 'package:sqflite/sqflite.dart';
 
 class OrderDao {
   final Uuid _uuid = const Uuid();
@@ -9,25 +9,54 @@ class OrderDao {
   Future<String> insert(Order order) async {
     final db = await AppDatabase.instance.database;
 
-    // Start a transaction
-    return await db.transaction<String>((txn) async {
-      // First, insert the order
-      await txn.insert('orders', order.toMap());
+    print('Inserting order to local database: ${order.id}');
 
-      // Then insert all order items
+    return await db.transaction<String>((txn) async {
+      final existingOrder = await txn.query(
+        'orders',
+        where: 'id = ?',
+        whereArgs: [order.id],
+      );
+
+      if (existingOrder.isNotEmpty) {
+        print('Order already exists, skipping insert: ${order.id}');
+      } else {
+        print('Inserting new order: ${order.id}');
+        await txn.insert(
+          'orders',
+          order.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+
       if (order.items.isNotEmpty) {
         final batch = txn.batch();
 
         for (final item in order.items) {
-          batch.insert('order_items', {
-            'id': _uuid.v4(),
-            'orderId': order.id,
-            'productId': item.productId,
-            'productName': item.productName,
-            'price': item.price,
-            'quantity': item.quantity,
-            'imageUrl': item.imageUrl,
-          });
+          final existingItem = await txn.query(
+            'order_items',
+            where: 'orderId = ? AND productId = ?',
+            whereArgs: [order.id, item.productId],
+          );
+
+          if (existingItem.isNotEmpty) {
+            print('Order item already exists, skipping: order ${order.id}, product ${item.productId}');
+            continue;
+          }
+
+          batch.insert(
+            'order_items',
+            {
+              'id': _uuid.v4(),
+              'orderId': order.id,
+              'productId': item.productId,
+              'productName': item.productName,
+              'price': item.price,
+              'quantity': item.quantity,
+              'imageUrl': item.imageUrl,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
         }
 
         await batch.commit(noResult: true);
@@ -40,10 +69,10 @@ class OrderDao {
   Future<List<Order>> getAll() async {
     final db = await AppDatabase.instance.database;
     final orders = await db.query('orders', orderBy: 'createdAt DESC');
+    print('Found ${orders.length} orders in local database (getAll)');
 
     if (orders.isEmpty) return [];
 
-    // Get all order items for these orders in a single query
     final orderIds = orders.map((o) => o['id'] as String).toList();
     final allItems = <String, List<Map<String, dynamic>>>{};
 
@@ -53,28 +82,17 @@ class OrderDao {
       whereArgs: orderIds,
     );
 
-    // Group items by orderId
     for (final item in items) {
       final orderId = item['orderId'] as String;
       allItems.putIfAbsent(orderId, () => []).add(item);
     }
 
-    // Combine orders with their items using Order.fromMap with items parameter
     return orders.map((orderMap) {
       final orderId = orderMap['id'] as String;
       final orderItems = allItems[orderId] ?? [];
-
       return Order.fromMap(
         orderMap,
-        items: orderItems.map((item) => OrderItem(
-          id: item['id'] as String,
-          orderId: item['orderId'] as String,
-          productId: item['productId'] as String,
-          productName: item['productName'] as String,
-          price: (item['price'] as num).toDouble(),
-          quantity: item['quantity'] as int,
-          imageUrl: item['imageUrl'] as String?,
-        )).toList(),
+        items: orderItems.map((item) => OrderItem.fromMap(item)).toList(),
       );
     }).toList();
   }
@@ -88,9 +106,10 @@ class OrderDao {
       orderBy: 'createdAt DESC',
     );
 
+    print('Found ${orders.length} orders for user $userId in local database');
+
     if (orders.isEmpty) return [];
 
-    // Get all order items for these orders in a single query
     final orderIds = orders.map((o) => o['id'] as String).toList();
     final allItems = <String, List<Map<String, dynamic>>>{};
 
@@ -100,79 +119,59 @@ class OrderDao {
       whereArgs: orderIds,
     );
 
-    // Group items by orderId
     for (final item in items) {
       final orderId = item['orderId'] as String;
       allItems.putIfAbsent(orderId, () => []).add(item);
     }
 
-    // Combine orders with their items using Order.fromMap with items parameter
     return orders.map((orderMap) {
       final orderId = orderMap['id'] as String;
       final orderItems = allItems[orderId] ?? [];
-
       return Order.fromMap(
         orderMap,
-        items: orderItems.map((item) => OrderItem(
-          id: item['id'] as String,
-          orderId: item['orderId'] as String,
-          productId: item['productId'] as String,
-          productName: item['productName'] as String,
-          price: (item['price'] as num).toDouble(),
-          quantity: item['quantity'] as int,
-          imageUrl: item['imageUrl'] as String?,
-        )).toList(),
+        items: orderItems.map((item) => OrderItem.fromMap(item)).toList(),
       );
     }).toList();
   }
 
   Future<Order?> getById(String id) async {
     final db = await AppDatabase.instance.database;
-
-    // Get the order first
     final orderResults = await db.query(
       'orders',
       where: 'id = ?',
       whereArgs: [id],
     );
 
-    if (orderResults.isEmpty) return null;
+    if (orderResults.isEmpty) {
+      print('Order not found in local database: $id');
+      return null;
+    }
 
-    // Get the order items
     final itemsResults = await db.query(
       'order_items',
       where: 'orderId = ?',
       whereArgs: [id],
     );
 
-    // Convert results to OrderItem objects
-    final items = itemsResults.map((itemMap) => OrderItem(
-      id: itemMap['id'] as String,
-      orderId: itemMap['orderId'] as String,
-      productId: itemMap['productId'] as String,
-      productName: itemMap['productName'] as String,
-      price: (itemMap['price'] as num).toDouble(),
-      quantity: itemMap['quantity'] as int,
-      imageUrl: itemMap['imageUrl'] as String?,
-    )).toList();
-
-    // Create order with items using Order.fromMap with items parameter
+    final items = itemsResults.map((itemMap) => OrderItem.fromMap(itemMap)).toList();
     return Order.fromMap(orderResults.first, items: items);
   }
 
   Future<int> update(Order order) async {
     final db = await AppDatabase.instance.database;
-    return await db.update(
+    final count = await db.update(
       'orders',
       order.toMap(),
       where: 'id = ?',
       whereArgs: [order.id],
     );
+    print('Updated order ${order.id}, rows affected: $count');
+    return count;
   }
 
   Future<int> updateStatus(String id, String status) async {
     final db = await AppDatabase.instance.database;
-    return await db.update(
+    final count = await db.update(
       'orders',
       {
         'status': status,
@@ -181,11 +180,13 @@ class OrderDao {
       where: 'id = ?',
       whereArgs: [id],
     );
+    print('Updated status for order $id to $status');
+    return count;
   }
 
   Future<int> updateTrackingNumber(String orderId, String trackingNumber) async {
     final db = await AppDatabase.instance.database;
-    return await db.update(
+    final count = await db.update(
       'orders',
       {
         'trackingNumber': trackingNumber,
@@ -195,6 +196,8 @@ class OrderDao {
       where: 'id = ?',
       whereArgs: [orderId],
     );
+    print('Updated tracking number for order $orderId');
+    return count;
   }
 
   Future<List<Order>> getByStatus(String status) async {
@@ -205,15 +208,21 @@ class OrderDao {
       whereArgs: [status],
       orderBy: 'createdAt DESC',
     );
-    return results.map(Order.fromMap).toList();
+    return results.map((map) => Order.fromMap(map)).toList();
   }
 
   Future<int> delete(String id) async {
     final db = await AppDatabase.instance.database;
-    return await db.delete(
-      'orders',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('order_items', where: 'orderId = ?', whereArgs: [id]);
+    final count = await db.delete('orders', where: 'id = ?', whereArgs: [id]);
+    print('Deleted order $id');
+    return count;
+  }
+
+  Future<void> clearAllOrders() async {
+    final db = await AppDatabase.instance.database;
+    await db.delete('order_items');
+    await db.delete('orders');
+    print('Cleared all orders from local database');
   }
 }

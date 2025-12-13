@@ -5,7 +5,7 @@ class Car {
   final int year;
   final String plateNumber;
   final String vin;
-  final String engineNumber;
+  final String? engineNumber;
   final int initialKm;
   final String userId;
   final DateTime createdAt;
@@ -20,7 +20,7 @@ class Car {
     required this.year,
     required this.plateNumber,
     required this.vin,
-    required this.engineNumber,
+    this.engineNumber,
     required this.initialKm,
     required this.userId,
     required this.isMain,
@@ -56,7 +56,7 @@ class Car {
       year: map['year'] as int,
       plateNumber: map['plateNumber'] as String,
       vin: map['vin'] as String,
-      engineNumber: map['engineNumber'] as String,
+      engineNumber: map['engineNumber'] as String?,
       initialKm: map['initialKm'] as int,
       userId: map['userId'] as String,
       isMain: (map['isMain'] as int? ?? 0) == 1,

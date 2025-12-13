@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../widgets/neumorphic_header.dart';
 import '../../providers/app_providers.dart';
 import 'package:superauto/models/user.dart';
+import 'package:superauto/services/auth_service.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -101,20 +102,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         }
 
         // Check if current password is correct
-        final user = ref.read(authProvider).value;
-        if (user != null) {
-          final isPasswordCorrect = await ref.read(userDaoProvider).verifyPassword(
-            user.id,
-            _currentPasswordController.text,
-          );
+        final auth = ref.read(authProvider.notifier);  // Assuming your provider is named authProvider
+        final isValid = await auth.verifyCurrentPassword(_currentPasswordController.text);
 
-          if (!isPasswordCorrect) {
+        if (!isValid) {
+          if (mounted) {
             setState(() {
               _showPasswordWarning = true;
               _isLoading = false;
             });
-            return; // Don't proceed with update
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Password saat ini salah')),
+            );
           }
+          return;
         }
 
         await authNotifier.updateProfile(

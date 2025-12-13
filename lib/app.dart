@@ -12,7 +12,6 @@ class SuperAutoApp extends ConsumerWidget {
     // Trigger the data seeder on app startup.
     // We use `read` because we only want to run it once and don't need to rebuild when its state changes.
     // The `FutureProvider` handles the execution logic (including the SharedPreferences check).
-    ref.read(seederProvider.future);
 
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(routerProvider);

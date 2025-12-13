@@ -1,8 +1,9 @@
+// lib/screens/checkout_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:getwidget/getwidget.dart';
-import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/app_providers.dart';
@@ -70,60 +71,46 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final user = ref.read(authProvider).value;
 
       if (user == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Silakan login terlebih dahulu')),
         );
         return;
       }
 
-      final orderId = const Uuid().v4();
+      // Create order items from cart
+      final items = cart.items.map((item) => OrderItem(
+        id: '', // Will be set by the service
+        orderId: '', // Will be set by the service
+        productId: item.productId,
+        productName: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+        imageUrl: item.imageUrl,
+      )).toList();
 
-      final items = cart.items.map((item) {
-        return OrderItem(
-          id: const Uuid().v4(),
-          orderId: orderId,
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price,
-          quantity: item.quantity,
-          imageUrl: item.imageUrl,
-        );
-      }).toList();
+      // --- PERBAIKAN UTAMA ---
+      // Gunakan total yang sudah dikurangi diskon dari cart
+      final discountedTotal = cart.total;
 
-      // Create order with items
-      final order = Order(
-        id: orderId,
-        userId: user.id!,
-        userName: user.name,
+      // Create order using the OrdersNotifier
+      final order = await ref.read(ordersProvider.notifier).createOrder(
         items: items,
-        total: cart.total,
-        createdAt: DateTime.now(),
-        status: 'pending',
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: _selectedPaymentMethod ?? 'COD',
         shippingMethod: _selectedShippingMethod,
         shippingAddress: _addressController.text,
-        trackingNumber: null, // admin will fill this later
       );
-
-      // Save to order and its items in a transaction
-      final orderDao = OrderDao();
-      await orderDao.insert(order);
 
       // Clear cart
       ref.read(cartProvider.notifier).clear();
 
-      // Update orders list in provider
-      if (ref.read(ordersProvider.notifier) is AsyncNotifier) {
-        await (ref.read(ordersProvider.notifier) as dynamic).refresh();
-      }
-
-
-
       if (!mounted) return;
 
-      context.go('/order-confirmation', extra: orderId);
+      // Navigate to order confirmation
+      context.go('/order-confirmation', extra: order.id);
 
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal membuat pesanan: $e')),
       );
@@ -137,7 +124,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final cart = ref.watch(cartProvider);
     final subtotal = cart.subtotal;
     final discount = cart.discount;
-    final total = cart.total;
+    final total = cart.total; // This is already discounted
 
     return Scaffold(
       appBar: GFAppBar(
@@ -336,7 +323,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Rp ${total.toStringAsFixed(0)}',
+                  'Rp ${total.toStringAsFixed(0)}', // This is already discounted
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],

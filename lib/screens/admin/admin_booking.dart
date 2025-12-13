@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/complete_service_dialog.dart';
 import '../../models/promo.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/dao/service_booking_dao.dart';
 class AdminBookingPage extends ConsumerWidget {
   const AdminBookingPage({super.key});
 
@@ -15,23 +17,77 @@ class AdminBookingPage extends ConsumerWidget {
       String carId,
       ) async {
     try {
-      final user = await ref.read(userDaoProvider).getUserById(userId);
-      final car = await ref.read(carDaoProvider).getById(carId);
+      print('🔍 Fetching details for userId: $userId, carId: $carId');
+      final supabase = Supabase.instance.client;
 
-      // Debug logs
-      print('🔍 Fetching car details - CarID: $carId (type: ${carId.runtimeType})');
-      print('   - User: ${user?.toMap()}');
-      print('   - Car found: ${car != null}');
+      String userName = 'Unknown User';
+      String userEmail = '-';
 
-      return {
-        'userName': user?.name ?? 'Unknown User',
-        'userPhone': user?.email ?? '-',
-        'carInfo': car != null
-            ? '${car.brand} ${car.model} (${car.plateNumber})'
-            : 'Mobil tidak ditemukan (ID: $carId)',
+      try {
+        print('   Querying profiles table...');
+        final userResponse = await supabase
+            .from('profiles')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+
+        print('   User response: $userResponse');
+
+        if (userResponse != null) {
+          userName = userResponse['name'] ?? 'Unknown User';
+          userEmail = userResponse['email'] ?? '-';
+        } else {
+          print('   User not found in profiles, trying auth.users...');
+          try {
+            final authUser = await supabase.auth.admin.getUserById(userId);
+            userName = authUser.user?.userMetadata?['name'] ?? 'Unknown User';
+            userEmail = authUser.user?.email ?? '-';
+          } catch (e) {
+            print('   Cannot fetch auth user: $e');
+          }
+        }
+      } catch (e) {
+        print('  Error fetching user: $e');
+      }
+
+      String carInfo = 'Mobil tidak ditemukan';
+
+      try {
+        print('   Querying cars table...');
+        final carResponse = await supabase
+            .from('cars')
+            .select()
+            .eq('id', carId)
+            .maybeSingle();
+
+        print('   Car response: $carResponse');
+
+        if (carResponse != null) {
+          final brand = carResponse['brand'] ?? 'Unknown';
+          final model = carResponse['model'] ?? '';
+          final plateNumber =
+              carResponse['plate_number'] ?? carResponse['platenumber'] ?? 'N/A';
+          carInfo = '$brand $model ($plateNumber)';
+        } else {
+          carInfo = 'Mobil tidak ditemukan (ID: $carId)';
+        }
+      } catch (e) {
+        print('    Error fetching car: $e');
+        carInfo = 'Error memuat data mobil';
+      }
+
+      final result = {
+        'userName': userName,
+        'userPhone': userEmail,
+        'carInfo': carInfo,
       };
-    } catch (e) {
-      print('❌ Error in _getUserAndCarDetails: $e');
+
+      print(' Details fetched successfully: $result');
+      return result;
+
+    } catch (e, stack) {
+      print(' Error in _getUserAndCarDetails: $e');
+      print(stack);
       return {
         'userName': 'Error',
         'userPhone': '-',
@@ -42,7 +98,6 @@ class AdminBookingPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // FILTER: hanya booking aktif
     final bookings = ref.watch(bookingsProvider).where((b) {
       final s = b.status.toLowerCase();
       return s != 'completed' && s != 'cancelled';
@@ -81,7 +136,17 @@ class AdminBookingPage extends ConsumerWidget {
         _showStatusUpdateDialog(context, notifier, id, status);
       }
     }
-
+    Future<void> _handleRefresh() async {
+      try {
+        final notifier = ref.read(bookingsProvider.notifier);
+        await notifier.refresh();
+      } catch (e) {
+        print('Error refreshing bookings: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memperbarui data booking')),
+        );
+      }
+    }
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -91,9 +156,19 @@ class AdminBookingPage extends ConsumerWidget {
         title: const Text('Manajemen Booking'),
         centerTitle: true,
       ),
-      body: bookings.isEmpty
-          ? const Center(child: Text('Tidak ada booking aktif'))
-          : ListView.builder(
+        body: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: bookings.isEmpty
+              ? ListView(
+            children: const [
+              SizedBox(
+                height: 300,
+                child: Center(child: Text('Tidak ada booking aktif')),
+              )
+            ],
+          )
+              : ListView.builder(
+
           padding: const EdgeInsets.all(16),
           itemCount: bookings.length,
           itemBuilder: (context, index) {
@@ -177,7 +252,6 @@ class AdminBookingPage extends ConsumerWidget {
                               'Total Biaya',
                               'Rp${booking.totalCost!.toStringAsFixed(0)}'
                           ),
-                          // Add promo info if exists
                           if (booking.promoId != null)
                             FutureBuilder<Promo?>(
                               future: ref.read(promoDaoProvider).getById(booking.promoId!),
@@ -245,6 +319,7 @@ class AdminBookingPage extends ConsumerWidget {
               },
             );
           }),
+    ),
     );
   }
 
@@ -344,7 +419,6 @@ class AdminBookingPage extends ConsumerWidget {
       'cancelled': 'Dibatalkan',
     };
 
-    // Only allow valid status transitions
     final availableStatuses = statuses.entries
         .where((e) =>
     _isValidStatusTransition(currentStatus, e.key) ||
@@ -358,10 +432,8 @@ class AdminBookingPage extends ConsumerWidget {
     final jobsController = TextEditingController();
     final totalCostController = TextEditingController();
 
-    // Load existing booking data
     final currentBooking = notifier.state.firstWhere((b) => b.id == id);
 
-    // Populate form fields with existing data
     if (currentBooking.jobs?.isNotEmpty ?? false) {
       jobsController.text = currentBooking.jobs!.join(', ');
     }
@@ -372,10 +444,8 @@ class AdminBookingPage extends ConsumerWidget {
       kmController.text = currentBooking.km.toString();
     }
     if (currentBooking.totalCost != null) {
-      // Jika admin sudah pernah menetapkan totalCost, gunakan nilai itu.
       totalCostController.text = currentBooking.totalCost.toString();
     } else if (currentBooking.estimatedCost != null) {
-      // Jika totalCost belum ada (masih null), gunakan estimatedCost sebagai nilai awal.
       totalCostController.text = currentBooking.estimatedCost.toString();
     }
 

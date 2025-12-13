@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../providers/app_providers.dart';
 import '../../models/product.dart';
 import '../models/enums.dart';
+import '../utils/image_placeholder.dart';
 
 class ProductFormDialog extends ConsumerStatefulWidget {
   final Product? existing;
@@ -73,16 +73,42 @@ class _FormState extends ConsumerState<ProductFormDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
         FilledButton(
-          onPressed: () {
-            ref.read(productsProvider.notifier).save(
-              name.text,
-              double.tryParse(price.text) ?? 0,
-              desc.text,
-              category,
-              models.text.split(",").map((e) => e.trim()).toList(),
-              widget.existing,
-            );
-            Navigator.pop(context);
+          onPressed: () async {
+            try {
+              final compatibleModels = models.text
+                  .split(",")
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+
+              final product = Product(
+                id: widget.existing?.id ?? '',
+                name: name.text,
+                price: double.tryParse(price.text) ?? 0,
+                description: desc.text,
+                category: category,
+                compatibleModels: compatibleModels,
+                // Use existing image or generate a placeholder
+                imageUrl: widget.existing?.imageUrl ?? ImagePlaceholder.generate(),
+              );
+
+              if (widget.existing != null) {
+                await ref.read(productsProvider.notifier).updateProduct(product);
+              } else {
+                await ref.read(productsProvider.notifier).addProduct(product);
+              }
+
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            } catch (e) {
+              print('Error saving product: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error saving product: $e')),
+                );
+              }
+            }
           },
           child: Text(isEdit ? "Save" : "Add"),
         ),
