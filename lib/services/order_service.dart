@@ -11,7 +11,6 @@ class OrderService {
 
   OrderService({required this.client, required this.orderDao});
 
-  // Create a new order in Supabase and cache it locally
   Future<Order> createOrder({
     required String userId,
     required String userName,
@@ -22,16 +21,14 @@ class OrderService {
     String? shippingAddress,
   }) async {
     try {
-      // Generate a unique ID for order using UUID
       final orderId = _uuid.v4();
 
       print('Creating order with ID: $orderId for user: $userId');
 
-      // Create the order in Supabase
       final orderData = {
         'id': orderId,
         'user_id': userId,
-        'username': userName, // Make sure userName is not null
+        'username': userName,
         'total': total,
         'status': 'pending',
         'payment_method': paymentMethod,
@@ -47,9 +44,8 @@ class OrderService {
 
       print('Order created in Supabase: $orderMap');
 
-      // Create order items in Supabase with unique IDs
       final List<Map<String, dynamic>> itemsData = items.map((item) => {
-        'id': _uuid.v4(), // Generate unique ID for each order item
+        'id': _uuid.v4(),
         'order_id': orderId,
         'product_id': item.productId,
         'product_name': item.productName,
@@ -62,7 +58,6 @@ class OrderService {
 
       await client.from('order_items').insert(itemsData);
 
-      // Create OrderItem objects with proper IDs
       final orderItems = itemsData.asMap().entries.map((entry) {
         final index = entry.key;
         final itemData = entry.value;
@@ -79,17 +74,14 @@ class OrderService {
         );
       }).toList();
 
-      // Use factory fromMap to create Order object
       final order = Order.fromMap(orderMap, items: orderItems);
 
       print('Order object created: ${order.toMap()}');
 
-      // Cache the order locally with error handling
       try {
         await orderDao.insert(order);
       } catch (e) {
         print('Error caching order locally: $e');
-        // Continue even if caching fails
       }
 
       return order;
@@ -99,7 +91,6 @@ class OrderService {
     }
   }
 
-  // Fetch orders from Supabase and cache them locally
   Future<List<Order>> fetchAndCacheOrders(String userId) async {
     try {
       print('Fetching orders for user: $userId');
@@ -123,23 +114,21 @@ class OrderService {
 
       print('Order items response (${itemsResponse.length} items): $itemsResponse');
 
-      // Group items by orderId
       final Map<String, List<Map<String, dynamic>>> itemsByOrderId = {};
       for (final item in itemsResponse) {
         final orderId = item['order_id'] as String;
         itemsByOrderId.putIfAbsent(orderId, () => []).add(item);
       }
 
-      // Build orders - PASTIKAN TIDAK DUPLIKAT
       final List<Order> orders = [];
-      final Set<String> seenIds = {}; // ← Tambah ini untuk anti duplikat
+      final Set<String> seenIds = {};
 
       for (final orderMap in response) {
         final orderId = orderMap['id'] as String;
 
         if (seenIds.contains(orderId)) {
           print('Skipping duplicate order from Supabase response: $orderId');
-          continue; // Skip kalau sudah ada
+          continue;
         }
 
         seenIds.add(orderId);
@@ -152,7 +141,6 @@ class OrderService {
 
       print('Final unique orders list: ${orders.length} orders');
 
-      // Cache semua (DAO sudah aman skip duplikat)
       for (final order in orders) {
         await orderDao.insert(order);
       }
@@ -164,105 +152,143 @@ class OrderService {
     }
   }
 
-  // Update order status in Supabase and cache
   Future<Order> updateOrderStatus(String orderId, String status) async {
     try {
-      final response = await client
-          .from('orders')
-          .update({
+      print('🔄 [OrderService] Memperbarui status order: $orderId menjadi $status');
+
+      final updateData = {
         'status': status,
         'updated_at': DateTime.now().toIso8601String(),
-      })
+      };
+
+      print('📤 [OrderService] Mengirim data pembaruan: $updateData');
+
+      final response = await client
+          .from('orders')
+          .update(updateData)
           .eq('id', orderId)
           .select();
 
       if (response.isEmpty) {
-        throw Exception('Order not found');
+        throw Exception('Order dengan ID $orderId tidak ditemukan atau pembaruan gagal.');
       }
 
       final orderMap = response.first;
+      print('✅ [OrderService] Respon Supabase setelah pembaruan: $orderMap');
 
-      // Get the cached order to preserve items
       final cachedOrder = await orderDao.getById(orderId);
       if (cachedOrder == null) {
-        throw Exception('Cached order not found');
+        print('⚠️ [OrderService] Order tidak ditemukan di cache, mengambil ulang dari Supabase.');
+        return await getOrderById(orderId);
       }
 
-      // Use copyWith to update status
       final updatedOrder = cachedOrder.copyWith(
         status: status,
         updatedAt: DateTime.now(),
       );
 
-      // Update the cache with error handling
       try {
         await orderDao.update(updatedOrder);
+        print('✅ [OrderService] Cache lokal diperbarui.');
       } catch (e) {
-        print('Error updating order locally: $e');
-        // Continue even if updating fails
+        print('⚠️ [OrderService] Error memperbarui cache lokal: $e');
       }
 
       return updatedOrder;
     } catch (e) {
-      print('Error updating order status: $e');
+      print('❌ [OrderService] Error memperbarui status order: $e');
       rethrow;
     }
   }
 
-  // Update tracking number in Supabase and cache
   Future<Order> updateTrackingNumber(String orderId, String trackingNumber) async {
     try {
-      final response = await client
-          .from('orders')
-          .update({
+      print('🔄 [OrderService] Memperbarui nomor lacak order: $orderId menjadi $trackingNumber');
+
+      final updateData = {
         'tracking_number': trackingNumber,
         'status': 'shipped',
         'updated_at': DateTime.now().toIso8601String(),
-      })
+      };
+
+      print('📤 [OrderService] Mengirim data pembaruan: $updateData');
+
+      final response = await client
+          .from('orders')
+          .update(updateData)
           .eq('id', orderId)
           .select();
 
       if (response.isEmpty) {
-        throw Exception('Order not found');
+        throw Exception('Order dengan ID $orderId tidak ditemukan atau pembaruan gagal.');
       }
 
       final orderMap = response.first;
+      print('✅ [OrderService] Respon Supabase setelah pembaruan: $orderMap');
 
-      // Get the cached order to preserve items
       final cachedOrder = await orderDao.getById(orderId);
       if (cachedOrder == null) {
-        throw Exception('Cached order not found');
+        print('⚠️ [OrderService] Order tidak ditemukan di cache, mengambil ulang dari Supabase.');
+        return await getOrderById(orderId);
       }
 
-      // Use copyWith to update
       final updatedOrder = cachedOrder.copyWith(
         trackingNumber: trackingNumber,
         status: 'shipped',
         updatedAt: DateTime.now(),
       );
 
-      // Update the cache with error handling
       try {
         await orderDao.update(updatedOrder);
+        print('✅ [OrderService] Cache lokal diperbarui.');
       } catch (e) {
-        print('Error updating order locally: $e');
-        // Continue even if updating fails
+        print('⚠️ [OrderService] Error memperbarui cache lokal: $e');
       }
 
       return updatedOrder;
     } catch (e) {
-      print('Error updating tracking number: $e');
+      print('❌ [OrderService] Error memperbarui nomor lacak: $e');
       rethrow;
     }
   }
 
-  // Get cached orders for offline access
   Future<List<Order>> getCachedOrders(String userId) async {
     return await orderDao.getByUserId(userId);
   }
 
-  // Get a specific cached order
   Future<Order?> getCachedOrder(String orderId) async {
     return await orderDao.getById(orderId);
   }
+
+  Future<Order> getOrderById(String orderId) async {
+    try {
+      print('🔍 [OrderService] Mengambil satu order dari Supabase: $orderId');
+
+      final orderResponse = await client
+          .from('orders')
+          .select()
+          .eq('id', orderId)
+          .single();
+
+      print('✅ [OrderService] Data order diterima: $orderResponse');
+
+      final itemsResponse = await client
+          .from('order_items')
+          .select()
+          .eq('order_id', orderId);
+
+      print('✅ [OrderService] Data item order diterima: $itemsResponse');
+
+      final items = itemsResponse.map((itemMap) => OrderItem.fromMap(itemMap)).toList();
+      final order = Order.fromMap(orderResponse, items: items);
+
+      await orderDao.insert(order);
+
+      return order;
+    } catch (e) {
+      print('❌ [OrderService] Error mengambil order $orderId dari Supabase: $e');
+      rethrow;
+    }
+  }
+
 }

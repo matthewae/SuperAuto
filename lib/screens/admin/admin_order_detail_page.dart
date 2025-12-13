@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../data/dao/order_dao.dart';
 import '../../models/order.dart';
 import '../../providers/app_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -22,10 +21,13 @@ class _AdminOrderDetailPageState extends ConsumerState<AdminOrderDetailPage>
   final TextEditingController _trackingController = TextEditingController();
   bool _isLoading = false;
 
+  late Future<Order> _orderFuture;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _orderFuture = _fetchOrder();
   }
 
   @override
@@ -35,84 +37,89 @@ class _AdminOrderDetailPageState extends ConsumerState<AdminOrderDetailPage>
     super.dispose();
   }
 
-  Future<void> _updateTrackingNumber(String orderId) async {
+  Future<Order> _fetchOrder() async {
+    final orderService = ref.read(orderServiceProvider);
+    try {
+      return await orderService.getOrderById(widget.orderId);
+    } catch (e) {
+      print('Error di _fetchOrder: $e');
+      rethrow;
+    }
+  }
+  void _refreshOrderData() {
     setState(() {
-      _isLoading = true;
+      _orderFuture = _fetchOrder();
     });
+  }
+
+  Future<void> _updateTrackingNumber(String orderId) async {
+    setState(() => _isLoading = true);
 
     try {
       await ref
-          .read(orderDaoProvider)
+          .read(orderServiceProvider)
           .updateTrackingNumber(orderId, _trackingController.text);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Tracking number updated successfully"),
+            content: Text("Nomor lacak berhasil diperbarui"),
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {});
+        _refreshOrderData();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed to update tracking number: $e"),
+            content: Text("Gagal memperbarui nomor lacak: $e"),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _updateOrderStatus(String orderId, String status) async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      await ref.read(orderDaoProvider).updateStatus(orderId, status);
+      await ref.read(orderServiceProvider).updateOrderStatus(orderId, status);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Order status updated successfully"),
+            content: Text("Status order berhasil diperbarui"),
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {});
+        _refreshOrderData();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed to update order status: $e"),
+            content: Text("Gagal memperbarui status order: $e"),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final dao = ref.watch(orderDaoProvider);
 
-    return FutureBuilder<Order?>(
-      future: dao.getById(widget.orderId),
+  Widget build(BuildContext context) {
+    return FutureBuilder<Order>(
+      future: _orderFuture,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return Scaffold(
@@ -163,15 +170,52 @@ class _AdminOrderDetailPageState extends ConsumerState<AdminOrderDetailPage>
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOrderDetailsTab(order, createdDate),
-                    _buildManageOrderTab(order),
-                  ],
-                ),
+            controller: _tabController,
+            children: [
+              _buildOrderDetailsTab(order, createdDate),
+              _buildManageOrderTab(order),
+            ],
+          ),
         );
       },
     );
+  }
+
+  Future<Order?> _fetchOrderFromSupabase() async {
+    try {
+      final orderService = ref.read(orderServiceProvider);
+      final order = await orderService.getCachedOrder(widget.orderId);
+
+      if (order != null) {
+        return order;
+      }
+
+      final client = orderService.client;
+      final response = await client
+          .from('orders')
+          .select()
+          .eq('id', widget.orderId)
+          .single();
+
+      final itemsResponse = await client
+          .from('order_items')
+          .select()
+          .eq('order_id', widget.orderId);
+
+      final items = itemsResponse.map((itemMap) => OrderItem.fromMap(itemMap)).toList();
+
+      return Order.fromMap(response, items: items);
+    } catch (e) {
+      print('Error fetching order from Supabase: $e');
+
+      try {
+        final dao = ref.read(orderDaoProvider);
+        return await dao.getById(widget.orderId);
+      } catch (e) {
+        print('Error fetching order from local database: $e');
+        return null;
+      }
+    }
   }
 
   Widget _buildOrderDetailsTab(Order order, String createdDate) {
